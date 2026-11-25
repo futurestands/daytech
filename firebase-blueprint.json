@@ -1,0 +1,304 @@
+{
+  "entities": {
+    "Enquiry": {
+      "title": "Enquiry",
+      "description": "Quotation request submitted by a prospective or existing client.",
+      "type": "object",
+      "properties": {
+        "referenceNumber": { "type": "string", "minLength": 8, "maxLength": 32, "pattern": "^DTQ-[0-9]{4}-[A-Z0-9]{6}$" },
+        "status": { "type": "string", "enum": ["New", "In Review", "Quotation Sent", "Converted", "Archived"] },
+        "fullName": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "organisation": { "type": "string", "minLength": 2, "maxLength": 150 },
+        "email": { "type": "string", "format": "email", "minLength": 5, "maxLength": 160 },
+        "telephone": { "type": "string", "minLength": 7, "maxLength": 40 },
+        "country": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "industry": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "requiredService": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "interestedProduct": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "projectDescription": { "type": "string", "minLength": 15, "maxLength": 3000 },
+        "budgetRange": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "currency": { "type": "string", "enum": ["UGX", "USD", "KES"] },
+        "timeline": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "preferredContactMethod": { "type": "string", "enum": ["Email", "Telephone", "WhatsApp", "Video Meeting"] },
+        "consentAccepted": { "type": "boolean" },
+        "submitterUid": { "type": "string", "maxLength": 128 },
+        "internalNotes": { "type": "string", "maxLength": 1500 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "referenceNumber",
+        "status",
+        "fullName",
+        "organisation",
+        "email",
+        "telephone",
+        "country",
+        "industry",
+        "requiredService",
+        "interestedProduct",
+        "projectDescription",
+        "budgetRange",
+        "currency",
+        "timeline",
+        "preferredContactMethod",
+        "consentAccepted",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "DemoBooking": {
+      "title": "DemoBooking",
+      "description": "Product demonstration booking request.",
+      "type": "object",
+      "properties": {
+        "referenceNumber": { "type": "string", "minLength": 8, "maxLength": 32, "pattern": "^DTD-[0-9]{4}-[A-Z0-9]{6}$" },
+        "status": { "type": "string", "enum": ["Pending", "Confirmed", "Rescheduled", "Declined"] },
+        "productSlug": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "productName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "fullName": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "organisation": { "type": "string", "minLength": 2, "maxLength": 150 },
+        "email": { "type": "string", "format": "email", "minLength": 5, "maxLength": 160 },
+        "telephone": { "type": "string", "minLength": 7, "maxLength": 40 },
+        "preferredDate": { "type": "string", "minLength": 4, "maxLength": 40 },
+        "preferredTime": { "type": "string", "minLength": 2, "maxLength": 40 },
+        "timezone": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "organisationSize": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "requirements": { "type": "string", "minLength": 10, "maxLength": 2000 },
+        "submitterUid": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "referenceNumber",
+        "status",
+        "productSlug",
+        "productName",
+        "fullName",
+        "organisation",
+        "email",
+        "telephone",
+        "preferredDate",
+        "preferredTime",
+        "timezone",
+        "organisationSize",
+        "requirements",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ContactMessage": {
+      "title": "ContactMessage",
+      "description": "General contact desk enquiry.",
+      "type": "object",
+      "properties": {
+        "referenceNumber": { "type": "string", "minLength": 8, "maxLength": 32, "pattern": "^DTC-[0-9]{4}-[A-Z0-9]{6}$" },
+        "fullName": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "organisation": { "type": "string", "maxLength": 150 },
+        "email": { "type": "string", "format": "email", "minLength": 5, "maxLength": 160 },
+        "subject": { "type": "string", "minLength": 3, "maxLength": 160 },
+        "message": { "type": "string", "minLength": 10, "maxLength": 3000 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["referenceNumber", "fullName", "email", "subject", "message", "createdAt"]
+    },
+    "UserAccount": {
+      "title": "UserAccount",
+      "description": "Authenticated user account and RBAC role assignment.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "organisationName": { "type": "string", "maxLength": 150 },
+        "role": { "type": "string", "enum": ["super_admin", "admin", "content_manager", "sales_officer", "project_manager", "support_officer", "client"] },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "role", "active", "createdAt", "updatedAt"]
+    },
+    "UserPrivateInfo": {
+      "title": "UserPrivateInfo",
+      "description": "Isolated PII record for authenticated user.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "email": { "type": "string", "format": "email", "maxLength": 160 },
+        "telephone": { "type": "string", "maxLength": 40 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "updatedAt"]
+    },
+    "SupportTicket": {
+      "title": "SupportTicket",
+      "description": "Client support ticket record.",
+      "type": "object",
+      "properties": {
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "organisationName": { "type": "string", "minLength": 2, "maxLength": 150 },
+        "subject": { "type": "string", "minLength": 4, "maxLength": 160 },
+        "category": { "type": "string", "minLength": 2, "maxLength": 60 },
+        "priority": { "type": "string", "enum": ["Low", "Normal", "High", "Urgent"] },
+        "status": { "type": "string", "enum": ["Open", "In Progress", "Awaiting Client", "Resolved", "Closed"] },
+        "description": { "type": "string", "minLength": 10, "maxLength": 3000 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerUid", "organisationName", "subject", "category", "priority", "status", "description", "createdAt", "updatedAt"]
+    },
+    "ClientProject": {
+      "title": "ClientProject",
+      "description": "Client delivery project tracked in the Client Portal.",
+      "type": "object",
+      "properties": {
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "organisationName": { "type": "string", "minLength": 2, "maxLength": 150 },
+        "title": { "type": "string", "minLength": 3, "maxLength": 160 },
+        "stage": { "type": "string", "enum": ["Discovery", "Planning", "Design", "Development", "Testing", "Deployment", "Support"] },
+        "progressPercent": { "type": "number" },
+        "summary": { "type": "string", "maxLength": 2000 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerUid", "organisationName", "title", "stage", "progressPercent", "createdAt", "updatedAt"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Immutable administrative audit trail entry.",
+      "type": "object",
+      "properties": {
+        "actorUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "actorEmail": { "type": "string", "maxLength": 160 },
+        "action": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "target": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["actorUid", "actorEmail", "action", "target", "createdAt"]
+    },
+    "Quotation": {
+      "title": "Quotation",
+      "description": "Formal itemised customer quotation generated by DayTech Solutions.",
+      "type": "object",
+      "properties": {
+        "quotationNumber": { "type": "string", "minLength": 8, "maxLength": 32, "pattern": "^QTE-[0-9]{4}-[A-Z0-9]{6}$" },
+        "enquiryId": { "type": "string", "maxLength": 64 },
+        "clientUid": { "type": "string", "maxLength": 128 },
+        "clientName": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "clientOrganisation": { "type": "string", "minLength": 2, "maxLength": 150 },
+        "clientEmail": { "type": "string", "format": "email", "minLength": 5, "maxLength": 160 },
+        "clientTelephone": { "type": "string", "maxLength": 40 },
+        "clientCountry": { "type": "string", "maxLength": 80 },
+        "title": { "type": "string", "minLength": 3, "maxLength": 180 },
+        "currency": { "type": "string", "enum": ["UGX", "USD", "KES"] },
+        "subtotal": { "type": "number" },
+        "discountPercent": { "type": "number" },
+        "discountAmount": { "type": "number" },
+        "taxPercent": { "type": "number" },
+        "taxAmount": { "type": "number" },
+        "totalAmount": { "type": "number" },
+        "status": { "type": "string", "enum": ["Draft", "Sent", "Accepted", "Declined", "Expired"] },
+        "validUntil": { "type": "string", "minLength": 8, "maxLength": 40 },
+        "paymentTerms": { "type": "string", "minLength": 2, "maxLength": 600 },
+        "notes": { "type": "string", "maxLength": 2000 },
+        "preparedByName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "preparedByEmail": { "type": "string", "minLength": 3, "maxLength": 160 },
+        "createdByUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "quotationNumber",
+        "clientName",
+        "clientOrganisation",
+        "clientEmail",
+        "title",
+        "currency",
+        "subtotal",
+        "discountPercent",
+        "discountAmount",
+        "taxPercent",
+        "taxAmount",
+        "totalAmount",
+        "status",
+        "validUntil",
+        "paymentTerms",
+        "preparedByName",
+        "preparedByEmail",
+        "createdByUid",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "QuotationItem": {
+      "title": "QuotationItem",
+      "description": "Line item belonging to a parent Quotation document.",
+      "type": "object",
+      "properties": {
+        "quotationId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "clientUid": { "type": "string", "maxLength": 128 },
+        "sortOrder": { "type": "number" },
+        "itemType": { "type": "string", "enum": ["Service", "Software License", "Implementation", "Infrastructure", "Support"] },
+        "description": { "type": "string", "minLength": 2, "maxLength": 240 },
+        "details": { "type": "string", "maxLength": 500 },
+        "unit": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "quantity": { "type": "number" },
+        "unitPrice": { "type": "number" },
+        "lineTotal": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "quotationId",
+        "sortOrder",
+        "itemType",
+        "description",
+        "unit",
+        "quantity",
+        "unitPrice",
+        "lineTotal",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/enquiries/{enquiryId}": {
+      "schema": { "$ref": "#/entities/Enquiry" },
+      "description": "Publicly creatable quotation enquiries; readable and manageable by authorised DayTech staff or owner."
+    },
+    "/demoBookings/{demoId}": {
+      "schema": { "$ref": "#/entities/DemoBooking" },
+      "description": "Publicly creatable product demonstration bookings; readable and manageable by authorised DayTech staff or owner."
+    },
+    "/contactMessages/{contactId}": {
+      "schema": { "$ref": "#/entities/ContactMessage" },
+      "description": "Publicly creatable general contact messages; readable by authorised DayTech staff."
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserAccount" },
+      "description": "User account role and non-PII status metadata."
+    },
+    "/users/{userId}/private/{docId}": {
+      "schema": { "$ref": "#/entities/UserPrivateInfo" },
+      "description": "Isolated PII subcollection readable only by the owning user or administrator."
+    },
+    "/supportTickets/{ticketId}": {
+      "schema": { "$ref": "#/entities/SupportTicket" },
+      "description": "Client support tickets isolated per ownerUid and DayTech support staff."
+    },
+    "/projects/{projectId}": {
+      "schema": { "$ref": "#/entities/ClientProject" },
+      "description": "Client delivery projects isolated per ownerUid and DayTech project staff."
+    },
+    "/auditLogs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLog" },
+      "description": "Immutable administrative action logs."
+    },
+    "/quotations/{quotationId}": {
+      "schema": { "$ref": "#/entities/Quotation" },
+      "description": "Formal customer quotations created by DayTech staff and viewable/acceptable by linked clients."
+    },
+    "/quotations/{quotationId}/items/{itemId}": {
+      "schema": { "$ref": "#/entities/QuotationItem" },
+      "description": "Line items subcollection under each quotation document."
+    }
+  }
+}

@@ -1,0 +1,505 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isBootstrappedAdmin() {
+      return isVerifiedUser() && request.auth.token.email == 'mugarurajohnson56@gmail.com';
+    }
+
+    function userDocExists() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isUserActive() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.active == true;
+    }
+
+    function isAdmin() {
+      return isBootstrappedAdmin() || (
+        isVerifiedUser() &&
+        userDocExists() &&
+        isUserActive() &&
+        getUserRole() in ['super_admin', 'admin']
+      );
+    }
+
+    function isStaff() {
+      return isBootstrappedAdmin() || (
+        isVerifiedUser() &&
+        userDocExists() &&
+        isUserActive() &&
+        getUserRole() in ['super_admin', 'admin', 'content_manager', 'sales_officer', 'project_manager', 'support_officer']
+      );
+    }
+
+    function isValidEnquiry(data) {
+      return data.keys().hasAll([
+          'referenceNumber', 'status', 'fullName', 'organisation', 'email',
+          'telephone', 'country', 'industry', 'requiredService', 'interestedProduct',
+          'projectDescription', 'budgetRange', 'currency', 'timeline',
+          'preferredContactMethod', 'consentAccepted', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'referenceNumber', 'status', 'fullName', 'organisation', 'email',
+          'telephone', 'country', 'industry', 'requiredService', 'interestedProduct',
+          'projectDescription', 'budgetRange', 'currency', 'timeline',
+          'preferredContactMethod', 'consentAccepted', 'submitterUid',
+          'internalNotes', 'createdAt', 'updatedAt'
+        ]) &&
+        data.referenceNumber is string && data.referenceNumber.size() >= 8 && data.referenceNumber.size() <= 32 &&
+        data.referenceNumber.matches('^DTQ-[0-9]{4}-[A-Z0-9]{6}$') &&
+        data.status is string && data.status in ['New', 'In Review', 'Quotation Sent', 'Converted', 'Archived'] &&
+        data.fullName is string && data.fullName.size() >= 2 && data.fullName.size() <= 120 &&
+        data.organisation is string && data.organisation.size() >= 2 && data.organisation.size() <= 150 &&
+        data.email is string && data.email.size() >= 5 && data.email.size() <= 160 &&
+        data.telephone is string && data.telephone.size() >= 7 && data.telephone.size() <= 40 &&
+        data.country is string && data.country.size() >= 2 && data.country.size() <= 80 &&
+        data.industry is string && data.industry.size() >= 2 && data.industry.size() <= 100 &&
+        data.requiredService is string && data.requiredService.size() >= 2 && data.requiredService.size() <= 120 &&
+        data.interestedProduct is string && data.interestedProduct.size() >= 1 && data.interestedProduct.size() <= 120 &&
+        data.projectDescription is string && data.projectDescription.size() >= 15 && data.projectDescription.size() <= 3000 &&
+        data.budgetRange is string && data.budgetRange.size() >= 2 && data.budgetRange.size() <= 100 &&
+        data.currency is string && data.currency in ['UGX', 'USD', 'KES'] &&
+        data.timeline is string && data.timeline.size() >= 2 && data.timeline.size() <= 100 &&
+        data.preferredContactMethod is string && data.preferredContactMethod in ['Email', 'Telephone', 'WhatsApp', 'Video Meeting'] &&
+        data.consentAccepted is bool && data.consentAccepted == true &&
+        (!('submitterUid' in data) || (data.submitterUid is string && data.submitterUid.size() <= 128)) &&
+        (!('internalNotes' in data) || (data.internalNotes is string && data.internalNotes.size() <= 1500)) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidDemoBooking(data) {
+      return data.keys().hasAll([
+          'referenceNumber', 'status', 'productSlug', 'productName', 'fullName',
+          'organisation', 'email', 'telephone', 'preferredDate', 'preferredTime',
+          'timezone', 'organisationSize', 'requirements', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'referenceNumber', 'status', 'productSlug', 'productName', 'fullName',
+          'organisation', 'email', 'telephone', 'preferredDate', 'preferredTime',
+          'timezone', 'organisationSize', 'requirements', 'submitterUid',
+          'createdAt', 'updatedAt'
+        ]) &&
+        data.referenceNumber is string && data.referenceNumber.size() >= 8 && data.referenceNumber.size() <= 32 &&
+        data.referenceNumber.matches('^DTD-[0-9]{4}-[A-Z0-9]{6}$') &&
+        data.status is string && data.status in ['Pending', 'Confirmed', 'Rescheduled', 'Declined'] &&
+        data.productSlug is string && data.productSlug.size() >= 1 && data.productSlug.size() <= 80 &&
+        data.productName is string && data.productName.size() >= 1 && data.productName.size() <= 120 &&
+        data.fullName is string && data.fullName.size() >= 2 && data.fullName.size() <= 120 &&
+        data.organisation is string && data.organisation.size() >= 2 && data.organisation.size() <= 150 &&
+        data.email is string && data.email.size() >= 5 && data.email.size() <= 160 &&
+        data.telephone is string && data.telephone.size() >= 7 && data.telephone.size() <= 40 &&
+        data.preferredDate is string && data.preferredDate.size() >= 4 && data.preferredDate.size() <= 40 &&
+        data.preferredTime is string && data.preferredTime.size() >= 2 && data.preferredTime.size() <= 40 &&
+        data.timezone is string && data.timezone.size() >= 2 && data.timezone.size() <= 80 &&
+        data.organisationSize is string && data.organisationSize.size() >= 1 && data.organisationSize.size() <= 60 &&
+        data.requirements is string && data.requirements.size() >= 10 && data.requirements.size() <= 2000 &&
+        (!('submitterUid' in data) || (data.submitterUid is string && data.submitterUid.size() <= 128)) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidContactMessage(data) {
+      return data.keys().hasAll(['referenceNumber', 'fullName', 'email', 'subject', 'message', 'createdAt']) &&
+        data.keys().hasOnly(['referenceNumber', 'fullName', 'organisation', 'email', 'subject', 'message', 'createdAt']) &&
+        data.referenceNumber is string && data.referenceNumber.size() >= 8 && data.referenceNumber.size() <= 32 &&
+        data.referenceNumber.matches('^DTC-[0-9]{4}-[A-Z0-9]{6}$') &&
+        data.fullName is string && data.fullName.size() >= 2 && data.fullName.size() <= 120 &&
+        (!('organisation' in data) || (data.organisation is string && data.organisation.size() <= 150)) &&
+        data.email is string && data.email.size() >= 5 && data.email.size() <= 160 &&
+        data.subject is string && data.subject.size() >= 3 && data.subject.size() <= 160 &&
+        data.message is string && data.message.size() >= 10 && data.message.size() <= 3000 &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidUserAccount(data) {
+      return data.keys().hasAll(['uid', 'displayName', 'role', 'active', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['uid', 'displayName', 'organisationName', 'role', 'active', 'createdAt', 'updatedAt']) &&
+        data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 &&
+        data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 120 &&
+        (!('organisationName' in data) || (data.organisationName is string && data.organisationName.size() <= 150)) &&
+        data.role is string && data.role in ['super_admin', 'admin', 'content_manager', 'sales_officer', 'project_manager', 'support_officer', 'client'] &&
+        data.active is bool &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidUserPrivateInfo(data) {
+      return data.keys().hasAll(['uid', 'email', 'updatedAt']) &&
+        data.keys().hasOnly(['uid', 'email', 'telephone', 'updatedAt']) &&
+        data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 &&
+        data.email is string && data.email.size() >= 5 && data.email.size() <= 160 &&
+        (!('telephone' in data) || (data.telephone is string && data.telephone.size() <= 40)) &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidSupportTicket(data) {
+      return data.keys().hasAll(['ownerUid', 'organisationName', 'subject', 'category', 'priority', 'status', 'description', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['ownerUid', 'organisationName', 'subject', 'category', 'priority', 'status', 'description', 'createdAt', 'updatedAt']) &&
+        data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128 &&
+        data.organisationName is string && data.organisationName.size() >= 2 && data.organisationName.size() <= 150 &&
+        data.subject is string && data.subject.size() >= 4 && data.subject.size() <= 160 &&
+        data.category is string && data.category.size() >= 2 && data.category.size() <= 60 &&
+        data.priority is string && data.priority in ['Low', 'Normal', 'High', 'Urgent'] &&
+        data.status is string && data.status in ['Open', 'In Progress', 'Awaiting Client', 'Resolved', 'Closed'] &&
+        data.description is string && data.description.size() >= 10 && data.description.size() <= 3000 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidClientProject(data) {
+      return data.keys().hasAll(['ownerUid', 'organisationName', 'title', 'stage', 'progressPercent', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['ownerUid', 'organisationName', 'title', 'stage', 'progressPercent', 'summary', 'createdAt', 'updatedAt']) &&
+        data.ownerUid is string && data.ownerUid.size() >= 1 && data.ownerUid.size() <= 128 &&
+        data.organisationName is string && data.organisationName.size() >= 2 && data.organisationName.size() <= 150 &&
+        data.title is string && data.title.size() >= 3 && data.title.size() <= 160 &&
+        data.stage is string && data.stage in ['Discovery', 'Planning', 'Design', 'Development', 'Testing', 'Deployment', 'Support'] &&
+        data.progressPercent is number && data.progressPercent >= 0 && data.progressPercent <= 100 &&
+        (!('summary' in data) || (data.summary is string && data.summary.size() <= 2000)) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidAuditLog(data) {
+      return data.keys().hasAll(['actorUid', 'actorEmail', 'action', 'target', 'createdAt']) &&
+        data.keys().hasOnly(['actorUid', 'actorEmail', 'action', 'target', 'createdAt']) &&
+        data.actorUid is string && data.actorUid.size() >= 1 && data.actorUid.size() <= 128 &&
+        data.actorEmail is string && data.actorEmail.size() >= 3 && data.actorEmail.size() <= 160 &&
+        data.action is string && data.action.size() >= 2 && data.action.size() <= 100 &&
+        data.target is string && data.target.size() >= 1 && data.target.size() <= 200 &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidQuotation(data) {
+      return data.keys().hasAll([
+          'quotationNumber', 'clientName', 'clientOrganisation', 'clientEmail',
+          'title', 'currency', 'subtotal', 'discountPercent', 'discountAmount',
+          'taxPercent', 'taxAmount', 'totalAmount', 'status', 'validUntil',
+          'paymentTerms', 'preparedByName', 'preparedByEmail', 'createdByUid',
+          'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'quotationNumber', 'enquiryId', 'clientUid', 'clientName', 'clientOrganisation',
+          'clientEmail', 'clientTelephone', 'clientCountry', 'title', 'currency',
+          'subtotal', 'discountPercent', 'discountAmount', 'taxPercent', 'taxAmount',
+          'totalAmount', 'status', 'validUntil', 'paymentTerms', 'notes',
+          'preparedByName', 'preparedByEmail', 'createdByUid', 'createdAt', 'updatedAt'
+        ]) &&
+        data.quotationNumber is string && data.quotationNumber.size() >= 8 && data.quotationNumber.size() <= 32 &&
+        data.quotationNumber.matches('^QTE-[0-9]{4}-[A-Z0-9]{6}$') &&
+        (!('enquiryId' in data) || (data.enquiryId is string && data.enquiryId.size() <= 64)) &&
+        (!('clientUid' in data) || (data.clientUid is string && data.clientUid.size() <= 128)) &&
+        data.clientName is string && data.clientName.size() >= 2 && data.clientName.size() <= 120 &&
+        data.clientOrganisation is string && data.clientOrganisation.size() >= 2 && data.clientOrganisation.size() <= 150 &&
+        data.clientEmail is string && data.clientEmail.size() >= 5 && data.clientEmail.size() <= 160 &&
+        (!('clientTelephone' in data) || (data.clientTelephone is string && data.clientTelephone.size() <= 40)) &&
+        (!('clientCountry' in data) || (data.clientCountry is string && data.clientCountry.size() <= 80)) &&
+        data.title is string && data.title.size() >= 3 && data.title.size() <= 180 &&
+        data.currency is string && data.currency in ['UGX', 'USD', 'KES'] &&
+        data.subtotal is number && data.subtotal >= 0 &&
+        data.discountPercent is number && data.discountPercent >= 0 && data.discountPercent <= 100 &&
+        data.discountAmount is number && data.discountAmount >= 0 &&
+        data.taxPercent is number && data.taxPercent >= 0 && data.taxPercent <= 100 &&
+        data.taxAmount is number && data.taxAmount >= 0 &&
+        data.totalAmount is number && data.totalAmount >= 0 &&
+        data.status is string && data.status in ['Draft', 'Sent', 'Accepted', 'Declined', 'Expired'] &&
+        data.validUntil is string && data.validUntil.size() >= 8 && data.validUntil.size() <= 40 &&
+        data.paymentTerms is string && data.paymentTerms.size() >= 2 && data.paymentTerms.size() <= 600 &&
+        (!('notes' in data) || (data.notes is string && data.notes.size() <= 2000)) &&
+        data.preparedByName is string && data.preparedByName.size() >= 1 && data.preparedByName.size() <= 120 &&
+        data.preparedByEmail is string && data.preparedByEmail.size() >= 3 && data.preparedByEmail.size() <= 160 &&
+        data.createdByUid is string && data.createdByUid.size() >= 1 && data.createdByUid.size() <= 128 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidQuotationItem(data) {
+      return data.keys().hasAll([
+          'quotationId', 'sortOrder', 'itemType', 'description', 'unit',
+          'quantity', 'unitPrice', 'lineTotal', 'createdAt'
+        ]) &&
+        data.keys().hasOnly([
+          'quotationId', 'clientUid', 'sortOrder', 'itemType', 'description',
+          'details', 'unit', 'quantity', 'unitPrice', 'lineTotal', 'createdAt'
+        ]) &&
+        data.quotationId is string && data.quotationId.size() >= 1 && data.quotationId.size() <= 128 &&
+        (!('clientUid' in data) || (data.clientUid is string && data.clientUid.size() <= 128)) &&
+        data.sortOrder is number && data.sortOrder >= 0 && data.sortOrder <= 500 &&
+        data.itemType is string && data.itemType in ['Service', 'Software License', 'Implementation', 'Infrastructure', 'Support'] &&
+        data.description is string && data.description.size() >= 2 && data.description.size() <= 240 &&
+        (!('details' in data) || (data.details is string && data.details.size() <= 500)) &&
+        data.unit is string && data.unit.size() >= 1 && data.unit.size() <= 40 &&
+        data.quantity is number && data.quantity > 0 && data.quantity <= 100000 &&
+        data.unitPrice is number && data.unitPrice >= 0 &&
+        data.lineTotal is number && data.lineTotal >= 0 &&
+        data.createdAt is timestamp;
+    }
+
+    // Startup connection check document
+    match /test/connection {
+      allow get: if true;
+      allow list, write: if false;
+    }
+
+    // Quotation enquiries
+    match /enquiries/{enquiryId} {
+      allow get: if isValidId(enquiryId) && (
+        (isVerifiedUser() && existing().submitterUid == request.auth.uid) || isStaff()
+      );
+      allow list: if (isVerifiedUser() && resource.data.submitterUid == request.auth.uid) || isStaff();
+      allow create: if isValidId(enquiryId) &&
+        isValidEnquiry(incoming()) &&
+        incoming().status == 'New' &&
+        !('internalNotes' in incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        (!('submitterUid' in incoming()) || (isSignedIn() && incoming().submitterUid == request.auth.uid));
+      allow update: if isValidId(enquiryId) &&
+        isValidEnquiry(incoming()) &&
+        isStaff() &&
+        incoming().referenceNumber == existing().referenceNumber &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (!(existing().status in ['Converted', 'Archived']) || isAdmin()) &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'internalNotes', 'updatedAt']);
+      allow delete: if isValidId(enquiryId) && isAdmin();
+    }
+
+    // Product demonstration bookings
+    match /demoBookings/{demoId} {
+      allow get: if isValidId(demoId) && (
+        (isVerifiedUser() && existing().submitterUid == request.auth.uid) || isStaff()
+      );
+      allow list: if (isVerifiedUser() && resource.data.submitterUid == request.auth.uid) || isStaff();
+      allow create: if isValidId(demoId) &&
+        isValidDemoBooking(incoming()) &&
+        incoming().status == 'Pending' &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        (!('submitterUid' in incoming()) || (isSignedIn() && incoming().submitterUid == request.auth.uid));
+      allow update: if isValidId(demoId) &&
+        isValidDemoBooking(incoming()) &&
+        isStaff() &&
+        incoming().referenceNumber == existing().referenceNumber &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'preferredDate', 'preferredTime', 'updatedAt']);
+      allow delete: if isValidId(demoId) && isAdmin();
+    }
+
+    // Contact desk messages
+    match /contactMessages/{contactId} {
+      allow get: if isValidId(contactId) && isStaff();
+      allow list: if isStaff();
+      allow create: if isValidId(contactId) &&
+        isValidContactMessage(incoming()) &&
+        incoming().createdAt == request.time;
+      allow update, delete: if isValidId(contactId) && isAdmin();
+    }
+
+    // User accounts (no public self-promotion)
+    match /users/{userId} {
+      allow get: if isValidId(userId) && ((isSignedIn() && request.auth.uid == userId) || isAdmin());
+      allow list: if (isSignedIn() && resource.data.uid == request.auth.uid) || isAdmin();
+      allow create: if isValidId(userId) &&
+        isVerifiedUser() &&
+        request.auth.uid == userId &&
+        isValidUserAccount(incoming()) &&
+        incoming().uid == request.auth.uid &&
+        incoming().active == true &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        (incoming().role == 'client' || isBootstrappedAdmin());
+      allow update: if isValidId(userId) &&
+        isValidUserAccount(incoming()) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isAdmin() || (
+            isVerifiedUser() &&
+            request.auth.uid == userId &&
+            incoming().role == existing().role &&
+            incoming().active == existing().active &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'organisationName', 'updatedAt'])
+          )
+        );
+      allow delete: if isValidId(userId) && isAdmin();
+
+      match /private/{docId} {
+        allow get: if isValidId(userId) && isValidId(docId) && ((isSignedIn() && request.auth.uid == userId) || isAdmin());
+        allow list: if false;
+        allow create, update: if isValidId(userId) && isValidId(docId) &&
+          docId == 'info' &&
+          isVerifiedUser() &&
+          request.auth.uid == userId &&
+          isValidUserPrivateInfo(incoming()) &&
+          incoming().uid == request.auth.uid &&
+          incoming().updatedAt == request.time;
+        allow delete: if isValidId(userId) && isAdmin();
+      }
+    }
+
+    // Support tickets
+    match /supportTickets/{ticketId} {
+      allow get: if isValidId(ticketId) && (
+        (isVerifiedUser() && existing().ownerUid == request.auth.uid) || isStaff()
+      );
+      allow list: if (isVerifiedUser() && resource.data.ownerUid == request.auth.uid) || isStaff();
+      allow create: if isValidId(ticketId) &&
+        isVerifiedUser() &&
+        isValidSupportTicket(incoming()) &&
+        incoming().ownerUid == request.auth.uid &&
+        incoming().status == 'Open' &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(ticketId) &&
+        isValidSupportTicket(incoming()) &&
+        incoming().ownerUid == existing().ownerUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (!(existing().status == 'Closed') || isAdmin()) && (
+          (isStaff() && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'priority', 'updatedAt'])) ||
+          (isVerifiedUser() && existing().ownerUid == request.auth.uid && incoming().status == existing().status && incoming().diff(existing()).affectedKeys().hasOnly(['description', 'updatedAt']))
+        );
+      allow delete: if isValidId(ticketId) && isAdmin();
+    }
+
+    // Client delivery projects
+    match /projects/{projectId} {
+      allow get: if isValidId(projectId) && (
+        (isVerifiedUser() && existing().ownerUid == request.auth.uid) || isStaff()
+      );
+      allow list: if (isVerifiedUser() && resource.data.ownerUid == request.auth.uid) || isStaff();
+      allow create: if isValidId(projectId) &&
+        isStaff() &&
+        isValidClientProject(incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(projectId) &&
+        isStaff() &&
+        isValidClientProject(incoming()) &&
+        incoming().ownerUid == existing().ownerUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['stage', 'progressPercent', 'summary', 'title', 'updatedAt']);
+      allow delete: if isValidId(projectId) && isAdmin();
+    }
+
+    // Immutable audit logs
+    match /auditLogs/{logId} {
+      allow get: if isValidId(logId) && isAdmin();
+      allow list: if isAdmin();
+      allow create: if isValidId(logId) &&
+        isStaff() &&
+        isValidAuditLog(incoming()) &&
+        incoming().actorUid == request.auth.uid &&
+        incoming().createdAt == request.time;
+      allow update, delete: if false;
+    }
+
+    // Formal customer quotations and line items
+    match /quotations/{quotationId} {
+      allow get: if isValidId(quotationId) && (
+        (isVerifiedUser() && 'clientUid' in existing() && existing().clientUid == request.auth.uid) || isStaff()
+      );
+      allow list: if (isVerifiedUser() && 'clientUid' in resource.data && resource.data.clientUid == request.auth.uid) || isStaff();
+      allow create: if isValidId(quotationId) &&
+        isStaff() &&
+        isValidQuotation(incoming()) &&
+        incoming().quotationNumber == quotationId &&
+        incoming().createdByUid == request.auth.uid &&
+        incoming().status in ['Draft', 'Sent'] &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(quotationId) &&
+        isValidQuotation(incoming()) &&
+        incoming().quotationNumber == existing().quotationNumber &&
+        incoming().createdByUid == existing().createdByUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (
+            isStaff() &&
+            !(existing().status in ['Accepted', 'Declined']) &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'enquiryId', 'clientUid', 'clientName', 'clientOrganisation', 'clientEmail',
+              'clientTelephone', 'clientCountry', 'title', 'currency',
+              'subtotal', 'discountPercent', 'discountAmount', 'taxPercent',
+              'taxAmount', 'totalAmount', 'status', 'validUntil', 'paymentTerms',
+              'notes', 'updatedAt'
+            ])
+          ) ||
+          (
+            isVerifiedUser() &&
+            'clientUid' in existing() &&
+            existing().clientUid == request.auth.uid &&
+            existing().status == 'Sent' &&
+            incoming().status in ['Accepted', 'Declined'] &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+          )
+        );
+      allow delete: if isValidId(quotationId) && isAdmin();
+
+      match /items/{itemId} {
+        allow get: if isValidId(quotationId) && isValidId(itemId) && (
+          isStaff() ||
+          (isVerifiedUser() && 'clientUid' in get(/databases/$(database)/documents/quotations/$(quotationId)).data && get(/databases/$(database)/documents/quotations/$(quotationId)).data.clientUid == request.auth.uid)
+        );
+        allow list: if isStaff() || (isVerifiedUser() && 'clientUid' in resource.data && resource.data.clientUid == request.auth.uid);
+        allow create: if isValidId(quotationId) && isValidId(itemId) &&
+          isStaff() &&
+          isValidQuotationItem(incoming()) &&
+          incoming().quotationId == quotationId &&
+          incoming().createdAt == request.time &&
+          existsAfter(/databases/$(database)/documents/quotations/$(quotationId)) &&
+          (
+            (!('clientUid' in getAfter(/databases/$(database)/documents/quotations/$(quotationId)).data) && !('clientUid' in incoming())) ||
+            ('clientUid' in getAfter(/databases/$(database)/documents/quotations/$(quotationId)).data && 'clientUid' in incoming() && incoming().clientUid == getAfter(/databases/$(database)/documents/quotations/$(quotationId)).data.clientUid)
+          );
+        allow update: if isValidId(quotationId) && isValidId(itemId) &&
+          isStaff() &&
+          isValidQuotationItem(incoming()) &&
+          incoming().quotationId == existing().quotationId &&
+          incoming().createdAt == existing().createdAt &&
+          (!(get(/databases/$(database)/documents/quotations/$(quotationId)).data.status in ['Accepted', 'Declined']) || isAdmin()) &&
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'clientUid', 'sortOrder', 'itemType', 'description', 'details',
+            'unit', 'quantity', 'unitPrice', 'lineTotal'
+          ]);
+        allow delete: if isValidId(quotationId) && isValidId(itemId) && (
+          isAdmin() ||
+          (isStaff() && !(get(/databases/$(database)/documents/quotations/$(quotationId)).data.status in ['Accepted', 'Declined']))
+        );
+      }
+    }
+  }
+}

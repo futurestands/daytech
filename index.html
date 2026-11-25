@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DayTech Solutions – Technology. Innovation. Impact.</title>
+    <meta
+      name="description"
+      content="DayTech Solutions delivers intelligent software, reliable IT infrastructure, cloud computing, and digital transformation across Uganda and Africa."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="DayTech Solutions" />
+    <meta property="og:title" content="DayTech Solutions – Technology. Innovation. Impact." />
+    <meta
+      property="og:description"
+      content="DayTech Solutions delivers intelligent software, reliable IT infrastructure, cloud computing, and digital transformation across Uganda and Africa."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="DayTech Solutions – Technology. Innovation. Impact." />
+    <meta
+      name="twitter:description"
+      content="DayTech Solutions delivers intelligent software, reliable IT infrastructure, cloud computing, and digital transformation across Uganda and Africa."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400..600&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('daytech-theme');
+          var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          if (stored === 'dark' || (!stored && prefersDark)) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "DayTech Solutions",
+        "description": "Uganda-based technology company specialising in software development, IT infrastructure, artificial intelligence, business automation, cloud computing, and digital transformation.",
+        "areaServed": ["Uganda", "East Africa", "Africa"],
+        "knowsAbout": [
+          "Software Development",
+          "IT Infrastructure",
+          "Artificial Intelligence",
+          "Cloud Computing",
+          "Cybersecurity",
+          "Digital Transformation"
+        ]
+      }
+    </script>
+  </head>
+  <body class="bg-[#F8FAFC] text-[#0B1120] dark:bg-[#020617] dark:text-slate-100 antialiased selection:bg-[#2563EB] selection:text-white">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
