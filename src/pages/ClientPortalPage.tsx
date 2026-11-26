@@ -70,6 +70,11 @@ const ticketSchema = z.object({
 });
 
 export function ClientPortalPage() {
+  const { user } = useFirebase();
+  return <ClientPortalSession key={user?.uid ?? 'guest'} />;
+}
+
+function ClientPortalSession() {
   const [searchParams] = useSearchParams();
   const { publicConfig } = useAppContext();
   const {

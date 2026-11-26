@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
 import { z } from 'zod';
@@ -85,6 +85,7 @@ export function QuotePage() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const submissionInFlight = useRef(false);
   const [submitting, setSubmitting] = useState(false);
   const [confirmation, setConfirmation] = useState<{
     referenceNumber: string;
@@ -101,6 +102,7 @@ export function QuotePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submissionInFlight.current) return;
     setErrors({});
     setSubmitError(null);
 
@@ -115,18 +117,11 @@ export function QuotePage() {
       return;
     }
 
+    submissionInFlight.current = true;
     setSubmitting(true);
     try {
       if (publicConfig.features.firebaseEnabled) {
         const result = await createEnquiryInFirestore(parsed.data);
-        // Best-effort sync to local server store when running locally
-        if (publicConfig.storage?.provider === 'firestore+local') {
-          fetch('/api/enquiries', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...parsed.data, referenceNumber: result.referenceNumber }),
-          }).catch(() => undefined);
-        }
         setConfirmation({
           referenceNumber: result.referenceNumber,
           createdAt: result.createdAt,
@@ -160,6 +155,7 @@ export function QuotePage() {
       }
       setSubmitError(msg);
     } finally {
+      submissionInFlight.current = false;
       setSubmitting(false);
     }
   };

@@ -6,6 +6,7 @@ interface ImageWithFallbackProps {
   alt: string;
   className?: string;
   fallbackLabel?: string;
+  priority?: boolean;
 }
 
 export function ImageWithFallback({
@@ -13,6 +14,7 @@ export function ImageWithFallback({
   alt,
   className = '',
   fallbackLabel,
+  priority = false,
 }: ImageWithFallbackProps) {
   const [failed, setFailed] = useState(false);
 
@@ -34,7 +36,9 @@ export function ImageWithFallback({
       src={src}
       alt={alt}
       referrerPolicy="no-referrer"
-      loading="lazy"
+      loading={priority ? 'eager' : 'lazy'}
+      fetchPriority={priority ? 'high' : undefined}
+      decoding="async"
       onError={() => setFailed(true)}
       className={className}
     />

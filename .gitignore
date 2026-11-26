@@ -9,3 +9,6 @@ coverage/
 /data/
 public/assets/aistudio/
 
+/test-results/
+/playwright-report/
+/dist-e2e/

@@ -564,21 +564,9 @@ export function createApiApp(deps: ApiAppDeps = {}) {
       .adminContext;
 
     if (!canUseLocalJsonStore(env)) {
-      return res.json({
-        adminAuthMode: adminCtx?.mode || 'firebase-rbac',
+      return res.status(503).json({
+        error: 'Server overview storage is unavailable. Use the Firestore staff dashboard.',
         storage,
-        stats: {
-          totalEnquiries: 0,
-          pendingQuotations: 0,
-          demoRequests: 0,
-          pendingDemos: 0,
-          contactMessages: 0,
-        },
-        enquiries: [],
-        demos: [],
-        contacts: [],
-        quotations: [],
-        auditLogs: [],
       });
     }
 

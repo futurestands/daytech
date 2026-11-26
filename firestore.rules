@@ -327,6 +327,7 @@ service cloud.firestore {
       allow create: if isValidId(enquiryId) &&
         isNotDeactivatedSubmitter() &&
         isValidEnquiry(incoming()) &&
+        incoming().referenceNumber == enquiryId &&
         incoming().status == 'New' &&
         !('internalNotes' in incoming()) &&
         incoming().createdAt == request.time &&
@@ -352,6 +353,7 @@ service cloud.firestore {
       allow create: if isValidId(demoId) &&
         isNotDeactivatedSubmitter() &&
         isValidDemoBooking(incoming()) &&
+        incoming().referenceNumber == demoId &&
         incoming().status == 'Pending' &&
         incoming().createdAt == request.time &&
         incoming().updatedAt == request.time &&
@@ -373,6 +375,7 @@ service cloud.firestore {
       allow create: if isValidId(contactId) &&
         isNotDeactivatedSubmitter() &&
         isValidContactMessage(incoming()) &&
+        incoming().referenceNumber == contactId &&
         incoming().createdAt == request.time;
       allow update, delete: if isValidId(contactId) && isAdmin();
     }
