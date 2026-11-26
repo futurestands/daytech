@@ -42,7 +42,7 @@ import {
 } from '../types/domain';
 import { useAppContext } from '../context/AppContext';
 import { useFirebase } from '../context/FirebaseContext';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase/client';
+import { db } from '../lib/firebase/client';
 import {
   computeQuotationTotals,
   createProjectInFirestore,
@@ -95,6 +95,11 @@ const DEFAULT_PAYMENT_TERMS =
   '50% mobilization deposit upon quotation acceptance, 30% upon UAT sign-off, and 20% upon production deployment.';
 
 export function AdminPage() {
+  const { user } = useFirebase();
+  return <AdminSession key={user?.uid ?? 'guest'} />;
+}
+
+function AdminSession() {
   const { publicConfig } = useAppContext();
   const {
     firebaseReady,
@@ -109,11 +114,12 @@ export function AdminPage() {
     signOutUser,
   } = useFirebase();
 
-  const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
+  const [requestedTab, setActiveTab] = useState<AdminTab>('dashboard');
   const [adminToken, setAdminToken] = useState('');
   const [serverUnlocked, setServerUnlocked] = useState(false);
   const [loadingServer, setLoadingServer] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [collectionStatus, setCollectionStatus] = useState<Record<string, string>>({});
   const [serverData, setServerData] = useState<AdminOverviewResponse | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [actionNotice, setActionNotice] = useState<string | null>(null);
@@ -176,22 +182,39 @@ export function AdminPage() {
 
   const usingFirestoreAdmin = Boolean(firebaseReady && authReady && isStaff && db);
 
+  const role = userAccount?.role;
+  const canSell = isAdmin || role === 'sales_officer';
+  const canSupport = isAdmin || role === 'support_officer';
+  const canManageProjects = isAdmin || role === 'project_manager';
+  const allowedTabs: AdminTab[] = ['dashboard'];
+  if (canSell || serverUnlocked) allowedTabs.push('enquiries', 'quotations', 'demos');
+  if (canSell || canSupport || serverUnlocked) allowedTabs.push('contacts');
+  if (canSupport || canManageProjects) allowedTabs.push('operations');
+  if (isAdmin || role === 'content_manager') allowedTabs.push('content');
+  if (isAdmin || serverUnlocked) allowedTabs.push('audit', 'settings');
+  const activeTab = allowedTabs.includes(requestedTab) ? requestedTab : 'dashboard';
+
   useEffect(() => {
-    if (!usingFirestoreAdmin) {
-      setFsEnquiries([]);
-      setFsDemos([]);
-      setFsContacts([]);
-      setFsTickets([]);
-      setFsProjects([]);
-      setFsUsers([]);
-      setFsQuotations([]);
-      setFsAuditLogs([]);
-      return;
+    setCollectionStatus({});
+    setFsEnquiries([]);
+    setFsDemos([]);
+    setFsContacts([]);
+    setFsTickets([]);
+    setFsProjects([]);
+    setFsUsers([]);
+    setFsQuotations([]);
+    setFsAuditLogs([]);
+    if (!usingFirestoreAdmin) return;
+
+    function updateStatus(collectionName: string, status: string) {
+      setCollectionStatus(previous => ({ ...previous, [collectionName]: status }));
     }
 
-    const unsubEnquiries = onSnapshot(
+    const unsubEnquiries = canSell ? onSnapshot(
       collection(db, 'enquiries'),
+      { includeMetadataChanges: true },
       (snap) => {
+        updateStatus('enquiries', snap.metadata.fromCache ? 'loading' : 'ready');
         const rows: EnquiryRecord[] = snap.docs.map((d) => {
           const r = d.data();
           return {
@@ -221,12 +244,14 @@ export function AdminPage() {
         rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
         setFsEnquiries(rows);
       },
-      (err) => handleFirestoreError(err, OperationType.LIST, 'enquiries')
-    );
+      (err) => updateStatus('enquiries', err.code)
+    ) : undefined;
 
-    const unsubQuotations = onSnapshot(
+    const unsubQuotations = canSell ? onSnapshot(
       collection(db, 'quotations'),
+      { includeMetadataChanges: true },
       (snap) => {
+        updateStatus('quotations', snap.metadata.fromCache ? 'loading' : 'ready');
         const rows: QuotationRecord[] = snap.docs.map((d) => {
           const r = d.data();
           return {
@@ -261,12 +286,14 @@ export function AdminPage() {
         rows.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
         setFsQuotations(rows);
       },
-      (err) => handleFirestoreError(err, OperationType.LIST, 'quotations')
-    );
+      (err) => updateStatus('quotations', err.code)
+    ) : undefined;
 
-    const unsubDemos = onSnapshot(
+    const unsubDemos = canSell ? onSnapshot(
       collection(db, 'demoBookings'),
+      { includeMetadataChanges: true },
       (snap) => {
+        updateStatus('demoBookings', snap.metadata.fromCache ? 'loading' : 'ready');
         const rows: DemoBookingRecord[] = snap.docs.map((d) => {
           const r = d.data();
           return {
@@ -291,12 +318,14 @@ export function AdminPage() {
         rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
         setFsDemos(rows);
       },
-      (err) => handleFirestoreError(err, OperationType.LIST, 'demoBookings')
-    );
+      (err) => updateStatus('demoBookings', err.code)
+    ) : undefined;
 
-    const unsubContacts = onSnapshot(
+    const unsubContacts = (canSell || canSupport) ? onSnapshot(
       collection(db, 'contactMessages'),
+      { includeMetadataChanges: true },
       (snap) => {
+        updateStatus('contactMessages', snap.metadata.fromCache ? 'loading' : 'ready');
         const rows: ContactMessageRecord[] = snap.docs.map((d) => {
           const r = d.data();
           return {
@@ -313,12 +342,14 @@ export function AdminPage() {
         rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
         setFsContacts(rows);
       },
-      (err) => handleFirestoreError(err, OperationType.LIST, 'contactMessages')
-    );
+      (err) => updateStatus('contactMessages', err.code)
+    ) : undefined;
 
-    const unsubTickets = onSnapshot(
+    const unsubTickets = canSupport ? onSnapshot(
       collection(db, 'supportTickets'),
+      { includeMetadataChanges: true },
       (snap) => {
+        updateStatus('supportTickets', snap.metadata.fromCache ? 'loading' : 'ready');
         const rows: SupportTicketRecord[] = snap.docs.map((d) => {
           const r = d.data();
           return {
@@ -337,12 +368,14 @@ export function AdminPage() {
         rows.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
         setFsTickets(rows);
       },
-      (err) => handleFirestoreError(err, OperationType.LIST, 'supportTickets')
-    );
+      (err) => updateStatus('supportTickets', err.code)
+    ) : undefined;
 
-    const unsubProjects = onSnapshot(
+    const unsubProjects = canManageProjects ? onSnapshot(
       collection(db, 'projects'),
+      { includeMetadataChanges: true },
       (snap) => {
+        updateStatus('projects', snap.metadata.fromCache ? 'loading' : 'ready');
         const rows: ClientProjectRecord[] = snap.docs.map((d) => {
           const r = d.data();
           return {
@@ -360,8 +393,8 @@ export function AdminPage() {
         rows.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
         setFsProjects(rows);
       },
-      (err) => handleFirestoreError(err, OperationType.LIST, 'projects')
-    );
+      (err) => updateStatus('projects', err.code)
+    ) : undefined;
 
     let unsubUsers: (() => void) | undefined;
     let unsubAudit: (() => void) | undefined;
@@ -369,7 +402,9 @@ export function AdminPage() {
     if (isAdmin) {
       unsubUsers = onSnapshot(
         collection(db, 'users'),
+        { includeMetadataChanges: true },
         (snap) => {
+          updateStatus('users', snap.metadata.fromCache ? 'loading' : 'ready');
           const rows: UserAccountRecord[] = snap.docs.map((d) => {
             const r = d.data();
             return {
@@ -385,12 +420,14 @@ export function AdminPage() {
           rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
           setFsUsers(rows);
         },
-        (err) => handleFirestoreError(err, OperationType.LIST, 'users')
+        (err) => updateStatus('users', err.code)
       );
 
       unsubAudit = onSnapshot(
         collection(db, 'auditLogs'),
+        { includeMetadataChanges: true },
         (snap) => {
+          updateStatus('auditLogs', snap.metadata.fromCache ? 'loading' : 'ready');
           const rows: AuditLogRecord[] = snap.docs.map((d) => {
             const r = d.data();
             return {
@@ -404,21 +441,21 @@ export function AdminPage() {
           rows.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
           setFsAuditLogs(rows);
         },
-        (err) => handleFirestoreError(err, OperationType.LIST, 'auditLogs')
+        (err) => updateStatus('auditLogs', err.code)
       );
     }
 
     return () => {
-      unsubEnquiries();
-      unsubQuotations();
-      unsubDemos();
-      unsubContacts();
-      unsubTickets();
-      unsubProjects();
+      unsubEnquiries?.();
+      unsubQuotations?.();
+      unsubDemos?.();
+      unsubContacts?.();
+      unsubTickets?.();
+      unsubProjects?.();
       unsubUsers?.();
       unsubAudit?.();
     };
-  }, [usingFirestoreAdmin, isAdmin]);
+  }, [usingFirestoreAdmin, isAdmin, canSell, canSupport, canManageProjects]);
 
   const fetchServerOverview = useCallback(
     async (tokenOverride?: string) => {
@@ -614,7 +651,7 @@ export function AdminPage() {
     setQuoteSaving(true);
     try {
       if (usingFirestoreAdmin) {
-        const result = await saveQuotationInFirestore({
+        const quotation = {
           quotationNumber: editingQuotationNumber || undefined,
           enquiryId: quoteForm.enquiryId || undefined,
           clientUid: quoteForm.clientUid || undefined,
@@ -632,7 +669,24 @@ export function AdminPage() {
           paymentTerms: quoteForm.paymentTerms,
           notes: quoteForm.notes || undefined,
           items: quoteItems,
+        };
+        const validation = await fetch('/api/quotations/validate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...quotation,
+            subtotal: liveTotals.subtotal,
+            discountAmount: liveTotals.discountAmount,
+            taxAmount: liveTotals.taxAmount,
+            totalAmount: liveTotals.totalAmount,
+          }),
         });
+        const verdict = await validation.json();
+        if (!validation.ok || verdict.valid !== true) {
+          setActionNotice(verdict.error || 'Quotation validation failed. Review its fields and try again.');
+          return;
+        }
+        const result = await saveQuotationInFirestore(quotation);
         setEditingQuotationNumber(result.quotationNumber);
         setActionNotice(
           `Quotation ${result.quotationNumber} saved as "${targetStatus}" (${formatCurrencyValue(
@@ -1093,7 +1147,7 @@ export function AdminPage() {
                 { id: 'audit', label: 'Users, RBAC & Audit Log', icon: Users },
                 { id: 'settings', label: 'System Settings', icon: Settings },
               ] as const
-            ).map((tab) => {
+            ).filter(tab => allowedTabs.includes(tab.id)).map((tab) => {
               const Icon = tab.icon;
               const active = activeTab === tab.id;
               return (
@@ -1126,18 +1180,24 @@ export function AdminPage() {
               <div className="space-y-6">
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   {[
-                    { label: 'Total Enquiries', value: activeEnquiries.length },
-                    { label: 'Pending Enquiries', value: pendingQuotationsCount },
-                    { label: 'Issued Quotations', value: activeQuotations.length },
-                    { label: 'Demo Requests', value: activeDemos.length },
-                  ].map((kpi) => (
+                    { label: 'Total Enquiries', collection: 'enquiries', value: activeEnquiries.length },
+                    { label: 'Pending Enquiries', collection: 'enquiries', value: pendingQuotationsCount },
+                    { label: 'Issued Quotations', collection: 'quotations', value: activeQuotations.length },
+                    { label: 'Demo Requests', collection: 'demoBookings', value: activeDemos.length },
+                  ].filter(() => canSell || serverUnlocked).map((kpi) => (
                     <div
                       key={kpi.label}
                       className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#020617] p-5"
                     >
                       <p className="text-xs text-slate-500 dark:text-slate-400">{kpi.label}</p>
                       <p className="mt-2 font-mono text-2xl font-bold text-[#0B1120] dark:text-white tabular-nums">
-                        {kpi.value}
+                        {serverUnlocked || collectionStatus[kpi.collection] === 'ready'
+                          ? kpi.value
+                          : collectionStatus[kpi.collection] === 'permission-denied'
+                            ? 'Access denied'
+                            : collectionStatus[kpi.collection] && collectionStatus[kpi.collection] !== 'loading'
+                              ? 'Unavailable'
+                              : 'Loading…'}
                       </p>
                     </div>
                   ))}
@@ -1147,7 +1207,15 @@ export function AdminPage() {
                   <h2 className="font-display text-lg font-bold text-[#0B1120] dark:text-white">
                     Recent Activity ({usingFirestoreAdmin ? 'Live Cloud Firestore' : 'Local Store'})
                   </h2>
-                  {activeAuditLogs.length === 0 ? (
+                  {usingFirestoreAdmin && collectionStatus.auditLogs !== 'ready' ? (
+                    <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
+                      {!isAdmin || collectionStatus.auditLogs === 'permission-denied'
+                        ? 'Access denied'
+                        : collectionStatus.auditLogs && collectionStatus.auditLogs !== 'loading'
+                          ? 'Audit history unavailable'
+                          : 'Loading audit history…'}
+                    </p>
+                  ) : activeAuditLogs.length === 0 ? (
                     <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
                       No administrative audit events recorded yet. Status updates and project actions appear here automatically.
                     </p>
@@ -1958,6 +2026,7 @@ export function AdminPage() {
               <div className="space-y-6">
                 {usingFirestoreAdmin ? (
                   <>
+                    {canManageProjects && <>
                     <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#020617] p-6 space-y-4">
                       <h2 className="font-display text-lg font-bold text-[#0B1120] dark:text-white">
                         Create Client Delivery Project
@@ -2079,6 +2148,8 @@ export function AdminPage() {
                       )}
                     </div>
 
+                    </>}
+                    {canSupport && (
                     <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#020617] p-6 space-y-4">
                       <h3 className="font-display text-lg font-bold text-[#0B1120] dark:text-white">
                         Support Tickets ({fsTickets.length})
@@ -2120,6 +2191,7 @@ export function AdminPage() {
                         </div>
                       )}
                     </div>
+                    )}
                   </>
                 ) : (
                   <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#020617] p-6 space-y-3">
@@ -2363,4 +2435,3 @@ export function AdminPage() {
     </div>
   );
 }
-

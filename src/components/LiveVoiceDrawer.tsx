@@ -6,7 +6,6 @@ import {
   Mic,
   MicOff,
   PhoneOff,
-  Radio,
   Send,
   Volume2,
   X,
@@ -69,8 +68,7 @@ function base64PcmToFloat32(base64: string): Float32Array<ArrayBuffer> {
   return float32;
 }
 
-export function LiveVoiceDrawer() {
-  const [isOpen, setIsOpen] = useState(false);
+export function LiveVoiceDrawer({ onClose }: { onClose: () => void }) {
   const [status, setStatus] = useState<ConnectionState>('idle');
   const [voice, setVoice] = useState<VoiceName>('Zephyr');
   const [isMuted, setIsMuted] = useState(false);
@@ -94,12 +92,6 @@ export function LiveVoiceDrawer() {
   useEffect(() => {
     isMutedRef.current = isMuted;
   }, [isMuted]);
-
-  useEffect(() => {
-    const onOpenVoice = () => setIsOpen(true);
-    window.addEventListener('daytech-open-voice', onOpenVoice);
-    return () => window.removeEventListener('daytech-open-voice', onOpenVoice);
-  }, []);
 
   useEffect(() => {
     transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -345,26 +337,11 @@ export function LiveVoiceDrawer() {
 
   const handleCloseDrawer = () => {
     endSession();
-    setIsOpen(false);
+    onClose();
   };
 
   return (
     <div className="print:hidden">
-      {/* Compact Floating Launcher when drawer is closed */}
-      {!isOpen && (
-        <button
-          type="button"
-          onClick={() => setIsOpen(true)}
-          aria-label="Open DayTech Live Voice Advisor"
-          className="fixed bottom-5 right-5 z-40 inline-flex items-center gap-2.5 px-4 py-3 rounded-xl bg-[#0B1120] dark:bg-[#2563EB] text-white shadow-lg border border-slate-700/60 dark:border-blue-400/40 hover:bg-slate-900 dark:hover:bg-blue-700 transition-colors"
-        >
-          <Radio className="w-4 h-4 text-[#06B6D4] dark:text-white" />
-          <span className="text-xs sm:text-sm font-semibold">Live Voice Advisor</span>
-        </button>
-      )}
-
-      {/* Voice Conversation Panel */}
-      {isOpen && (
         <aside
           aria-label="DayTech Live Voice Advisor"
           className="fixed bottom-4 right-4 z-50 w-[calc(100vw-2rem)] sm:w-[400px] max-h-[82vh] flex flex-col rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0B1120] shadow-2xl overflow-hidden"
@@ -580,7 +557,6 @@ export function LiveVoiceDrawer() {
             )}
           </div>
         </aside>
-      )}
     </div>
   );
 }

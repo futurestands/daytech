@@ -33,3 +33,14 @@
 - [x] ESLint Firestore security rules audit, TypeScript check, and Vite production build passing
 - [ ] Push code to GitHub (`futurestands/daytechsolutions-`) from an authenticated git session / AI Studio GitHub export and deploy to Vercel
 - [ ] Review and harden `firestore.rules` before broad public launch
+
+## Milestone 2 — Functional integration
+
+- [x] Route splitting and deferred map and voice modules.
+- [x] Prevent concurrent repeated submissions in the three acquisition forms and remove duplicate local mirroring.
+- [x] Reset private portal UI and discard stale auth profile responses on account changes.
+- [ ] Durable acquisition idempotency, controlled guest linking, and abuse controls.
+- [ ] Trusted financial persistence, quotation revision history, revocable quotation links, and end-to-end conversion.
+- [x] Role-based navigation and Firestore subscription permissions, with loading and error states for dashboard sales metrics.
+- [x] Local emulator acquisition and quotation decision tests, production-preview smoke tests and baseline CI workflow.
+- [ ] Verify fully integrated customer and staff workflows in an approved preview.

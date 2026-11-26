@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import React, { lazy, Suspense, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertCircle, CheckCircle2, Globe, Mail, MapPin, Phone } from 'lucide-react';
 import { z } from 'zod';
 import { SEOHead } from '../components/SEOHead';
-import { DayTechCoverageMap } from '../components/DayTechCoverageMap';
 import { useAppContext } from '../context/AppContext';
 import { createContactMessageInFirestore } from '../lib/firebase/firestoreService';
 
@@ -14,6 +13,8 @@ const contactSchema = z.object({
   subject: z.string().trim().min(3, 'Subject is required').max(160),
   message: z.string().trim().min(10, 'Message must be at least 10 characters').max(3000),
 });
+
+const DayTechCoverageMap = lazy(() => import('../components/DayTechCoverageMap').then(module => ({ default: module.DayTechCoverageMap })));
 
 export function ContactPage() {
   const { publicConfig } = useAppContext();
@@ -27,11 +28,13 @@ export function ContactPage() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const submissionInFlight = useRef(false);
   const [submitting, setSubmitting] = useState(false);
   const [referenceNumber, setReferenceNumber] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submissionInFlight.current) return;
     setErrors({});
     setSubmitError(null);
 
@@ -45,17 +48,11 @@ export function ContactPage() {
       return;
     }
 
+    submissionInFlight.current = true;
     setSubmitting(true);
     try {
       if (publicConfig.features.firebaseEnabled) {
         const result = await createContactMessageInFirestore(parsed.data);
-        if (publicConfig.storage?.provider === 'firestore+local') {
-          fetch('/api/contact', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...parsed.data, referenceNumber: result.referenceNumber }),
-          }).catch(() => undefined);
-        }
         setReferenceNumber(result.referenceNumber);
         setForm({ fullName: '', organisation: '', email: '', subject: '', message: '' });
         return;
@@ -85,6 +82,7 @@ export function ContactPage() {
       }
       setSubmitError(msg);
     } finally {
+      submissionInFlight.current = false;
       setSubmitting(false);
     }
   };
@@ -239,11 +237,12 @@ export function ContactPage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-[#0B1120] dark:text-slate-200 mb-1.5">
+                    <label htmlFor="contact-fullName" className="block text-sm font-medium text-[#0B1120] dark:text-slate-200 mb-1.5">
                       Full Name *
                     </label>
                     <input
                       type="text"
+                      id="contact-fullName"
                       value={form.fullName}
                       onChange={(e) => setForm({ ...form, fullName: e.target.value })}
                       className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0B1120] text-sm text-[#0B1120] dark:text-white"
@@ -251,11 +250,12 @@ export function ContactPage() {
                     {errors.fullName && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.fullName}</p>}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-[#0B1120] dark:text-slate-200 mb-1.5">
+                    <label htmlFor="contact-organisation" className="block text-sm font-medium text-[#0B1120] dark:text-slate-200 mb-1.5">
                       Organisation
                     </label>
                     <input
                       type="text"
+                      id="contact-organisation"
                       value={form.organisation}
                       onChange={(e) => setForm({ ...form, organisation: e.target.value })}
                       className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0B1120] text-sm text-[#0B1120] dark:text-white"
@@ -264,12 +264,13 @@ export function ContactPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-[#0B1120] dark:text-slate-200 mb-1.5">
+                  <label htmlFor="contact-email" className="block text-sm font-medium text-[#0B1120] dark:text-slate-200 mb-1.5">
                     Email Address *
                   </label>
                   <input
                     type="email"
-                    value={form.email}
+                    id="contact-email"
+                      value={form.email}
                     onChange={(e) => setForm({ ...form, email: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0B1120] text-sm text-[#0B1120] dark:text-white"
                   />
@@ -277,12 +278,13 @@ export function ContactPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-[#0B1120] dark:text-slate-200 mb-1.5">
+                  <label htmlFor="contact-subject" className="block text-sm font-medium text-[#0B1120] dark:text-slate-200 mb-1.5">
                     Subject *
                   </label>
                   <input
                     type="text"
-                    value={form.subject}
+                    id="contact-subject"
+                      value={form.subject}
                     onChange={(e) => setForm({ ...form, subject: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0B1120] text-sm text-[#0B1120] dark:text-white"
                   />
@@ -290,12 +292,13 @@ export function ContactPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-[#0B1120] dark:text-slate-200 mb-1.5">
+                  <label htmlFor="contact-message" className="block text-sm font-medium text-[#0B1120] dark:text-slate-200 mb-1.5">
                     Message *
                   </label>
                   <textarea
                     rows={4}
-                    value={form.message}
+                    id="contact-message"
+                      value={form.message}
                     onChange={(e) => setForm({ ...form, message: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0B1120] text-sm text-[#0B1120] dark:text-white"
                   />
@@ -317,7 +320,9 @@ export function ContactPage() {
 
       <section className="pb-16 bg-[#F8FAFC] dark:bg-[#0B1120]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <DayTechCoverageMap />
+          <Suspense fallback={<p role="status">Loading coverage map…</p>}>
+            <DayTechCoverageMap />
+          </Suspense>
         </div>
       </section>
     </div>
