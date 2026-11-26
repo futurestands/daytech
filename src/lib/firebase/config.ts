@@ -47,7 +47,11 @@ export function resolveFirebaseConfig(
   appletConfig: Partial<FirebaseWebConfig> | null | undefined = firebaseAppletConfig
 ): FirebaseConfigResolution {
   const hasApplet = isValidConfigObject(appletConfig);
-  const featureEnabled = isFirebaseFeatureEnabled(env.VITE_FEATURE_FIREBASE, hasApplet);
+  const hasWebOverride = [
+    env.VITE_FIREBASE_API_KEY, env.VITE_FIREBASE_AUTH_DOMAIN,
+    env.VITE_FIREBASE_PROJECT_ID, env.VITE_FIREBASE_APP_ID,
+  ].every((field) => field?.trim()) && env.VITE_FIREBASE_PROJECT_ID?.trim() !== 'remixed-project-id';
+  const featureEnabled = isFirebaseFeatureEnabled(env.VITE_FEATURE_FIREBASE, hasApplet || hasWebOverride);
 
   if (!featureEnabled) {
     return {

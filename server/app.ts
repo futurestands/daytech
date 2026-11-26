@@ -412,6 +412,8 @@ export function createApiApp(deps: ApiAppDeps = {}) {
   // 1. Valid HMAC-SHA256 signed expiring share token (?token=...) -> returns redacted customer-safe DTO
   // 2. Authenticated Firebase caller (Authorization: Bearer <idToken> + ?ref=...) -> returns caller-owned sanitized summary
   app.get('/api/portal/lookup', rateLimit(30, 60_000), async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    res.set('Referrer-Policy', 'no-referrer');
     const shareToken = typeof req.query.token === 'string' ? req.query.token.trim() : '';
 
     if (shareToken) {
@@ -493,54 +495,24 @@ export function createApiApp(deps: ApiAppDeps = {}) {
     }
 
     const fetchDocFn = deps.fetchFirestoreDoc ?? fetchFirestoreDocAsCaller;
+    try {
+      const account = await fetchDocFn(idToken, 'users', decoded.uid);
+      if (account?.active !== true) {
+        return res.status(403).json({ error: 'An active customer account is required.' });
+      }
 
-    if (ref.startsWith('DTQ-')) {
-      const fsDoc = await fetchDocFn(idToken, 'enquiries', ref).catch(() => null);
-      if (fsDoc) {
-        return res.json(sanitizeEnquiryLookup(fsDoc));
-      }
-    } else if (ref.startsWith('DTD-')) {
-      const fsDoc = await fetchDocFn(idToken, 'demoBookings', ref).catch(() => null);
-      if (fsDoc) {
-        return res.json(sanitizeDemoLookup(fsDoc));
-      }
-    } else if (ref.startsWith('QTE-')) {
-      const fsDoc = await fetchDocFn(idToken, 'quotations', ref).catch(() => null);
-      if (fsDoc) {
-        return res.json(sanitizeQuotationLookup(fsDoc));
-      }
-    }
-
-    if (canUseLocalJsonStore(env)) {
-      const store = ensureLocalStore();
-      const userEmail = decoded.email?.toLowerCase();
       if (ref.startsWith('DTQ-')) {
-        const match = store.enquiries.find(
-          (item) =>
-            item.referenceNumber === ref &&
-            (item.submitterUid === decoded.uid ||
-              (userEmail && item.email?.toLowerCase() === userEmail))
-        );
-        if (match) return res.json(sanitizeEnquiryLookup(match));
+        const enquiry = await fetchDocFn(idToken, 'enquiries', ref);
+        if (enquiry?.submitterUid === decoded.uid) return res.json(sanitizeEnquiryLookup(enquiry));
+      } else if (ref.startsWith('DTD-')) {
+        const demo = await fetchDocFn(idToken, 'demoBookings', ref);
+        if (demo?.submitterUid === decoded.uid) return res.json(sanitizeDemoLookup(demo));
+      } else {
+        const quotation = await fetchDocFn(idToken, 'quotations', ref);
+        if (quotation?.clientUid === decoded.uid) return res.json(sanitizeQuotationLookup(quotation));
       }
-      if (ref.startsWith('DTD-')) {
-        const match = store.demos.find(
-          (item) =>
-            item.referenceNumber === ref &&
-            (item.submitterUid === decoded.uid ||
-              (userEmail && item.email?.toLowerCase() === userEmail))
-        );
-        if (match) return res.json(sanitizeDemoLookup(match));
-      }
-      if (ref.startsWith('QTE-')) {
-        const match = (store.quotations || []).find(
-          (item) =>
-            item.quotationNumber === ref &&
-            (item.clientUid === decoded.uid ||
-              (userEmail && item.clientEmail?.toLowerCase() === userEmail))
-        );
-        if (match) return res.json(sanitizeQuotationLookup(match));
-      }
+    } catch {
+      return res.status(503).json({ error: 'Reference lookup is temporarily unavailable.' });
     }
 
     return res.status(404).json({
@@ -565,7 +537,7 @@ export function createApiApp(deps: ApiAppDeps = {}) {
       if (!secret) {
         return res.status(503).json({
           error:
-            'QUOTATION_LINK_SECRET (or ADMIN_ACCESS_KEY) must be configured in server environment variables to sign customer quotation links in production.',
+            'QUOTATION_LINK_SECRET must contain at least 32 characters and be configured in server environment variables to sign customer quotation links in production.',
         });
       }
 
@@ -586,7 +558,7 @@ export function createApiApp(deps: ApiAppDeps = {}) {
   );
 
   // Admin Overview & Operations API
-  app.get('/api/admin/overview', adminGuard(), (req, res) => {
+  app.get('/api/admin/overview', adminGuard(['super_admin', 'admin']), (req, res) => {
     const storage = getStorageStatus(env);
     const adminCtx = (req as Request & { adminContext?: { mode: string; role?: string } })
       .adminContext;

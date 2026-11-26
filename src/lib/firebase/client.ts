@@ -12,23 +12,6 @@ export enum OperationType {
   WRITE = 'write',
 }
 
-export interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId?: string | null;
-    email?: string | null;
-    emailVerified?: boolean | null;
-    isAnonymous?: boolean | null;
-    tenantId?: string | null;
-    providerInfo?: {
-      providerId?: string | null;
-      email?: string | null;
-    }[];
-  };
-}
-
 export interface FirebaseConnectionHealth {
   status: 'connected' | 'disabled' | 'unavailable' | 'misconfigured';
   message: string;
@@ -65,39 +48,23 @@ export const firebaseConfigResolution = resolution;
 export function handleFirestoreError(
   error: unknown,
   operationType: OperationType,
-  path: string | null
+  _path: string | null
 ): never {
-  const currentUser = authInstance?.currentUser ?? null;
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: currentUser?.uid,
-      email: currentUser?.email,
-      emailVerified: currentUser?.emailVerified,
-      isAnonymous: currentUser?.isAnonymous,
-      tenantId: currentUser?.tenantId,
-      providerInfo:
-        currentUser?.providerData?.map((provider) => ({
-          providerId: provider.providerId,
-          email: provider.email,
-        })) || [],
-    },
-    operationType,
-    path,
-  };
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
+  const code = (error as { code?: string })?.code || 'unknown';
+  console.error('Firestore request failed', { code, operationType });
+  throw new Error(`Firestore request failed (${code}).`);
 }
 
 export function formatFirebaseAuthError(error: unknown): string {
   const code = (error as { code?: string })?.code || '';
+  const projectId = resolution.config?.projectId || TARGET_FIREBASE_PROJECT_ID;
   const host = typeof window !== 'undefined' ? window.location.hostname : 'this domain';
 
   switch (code) {
     case 'auth/unauthorized-domain':
-      return `Domain "${host}" is not authorised for Google Sign-In. Add "${host}" under Firebase Console → Authentication → Settings → Authorized domains (project: ${TARGET_FIREBASE_PROJECT_ID}).`;
+      return `Domain "${host}" is not authorised for Google Sign-In. Add "${host}" under Firebase Console → Authentication → Settings → Authorized domains (project: ${projectId}).`;
     case 'auth/operation-not-allowed':
-      return `Google Sign-In provider is disabled in Firebase Console for project ${TARGET_FIREBASE_PROJECT_ID}.`;
+      return `Google Sign-In provider is disabled in Firebase Console for project ${projectId}.`;
     case 'auth/popup-closed-by-user':
       return 'Google sign-in popup was closed before completion.';
     case 'auth/popup-blocked':
@@ -105,7 +72,7 @@ export function formatFirebaseAuthError(error: unknown): string {
     case 'auth/network-request-failed':
       return 'Network connection to Firebase Authentication failed. Verify internet connectivity and retry.';
     default:
-      return error instanceof Error ? error.message : 'Firebase authentication failed.';
+      return 'Google sign-in failed. Please try again or contact DayTech support.';
   }
 }
 

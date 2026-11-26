@@ -11,8 +11,8 @@ export function getQuotationSigningSecret(env: NodeJS.ProcessEnv = process.env):
   ephemeral: boolean;
 } {
   const configured =
-    env.QUOTATION_LINK_SECRET?.trim() || env.ADMIN_ACCESS_KEY?.trim() || '';
-  if (configured.length >= 16) {
+    env.QUOTATION_LINK_SECRET?.trim() || '';
+  if (configured.length >= 32) {
     return { secret: configured, ephemeral: false };
   }
   if (env.NODE_ENV === 'production' || isServerlessRuntime(env)) {

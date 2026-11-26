@@ -1,10 +1,10 @@
 # DayTech Solutions — Firestore Security Rules Specification
 
 ## 1. Data Invariants
-1. **Zero Hardcoded Privileged Emails**: Administrative authority is never granted via literal email checks. Initial super administrator provisioning uses a one-time atomic `/system/bootstrap` lock document combined with `/users/{uid}` role promotion (`role: 'super_admin'`). Existing verified `super_admin` and `admin` user documents preserve access seamlessly.
-2. **No Public Role Escalation & Active Account Enforcement**: A user creating `/users/{userId}` can only self-register as `role: 'client'` and `active: true` (unless atomically claiming an unclaimed `/system/bootstrap`). Deactivated users (`active: false`) are synchronously blocked from all authenticated client and staff operations across `/users`, `/enquiries`, `/demoBookings`, `/supportTickets`, `/projects`, `/quotations`, and `/auditLogs`.
+1. **Zero Hardcoded Privileged Emails**: Administrative authority is never granted via literal email checks. Initial provisioning requires an authorised Firebase operator to update a verified user's Firestore profile. Existing staff roles remain effective and should be reviewed before rollout.
+2. **No Public Role Escalation & Active Account Enforcement**: A user creating `/users/{userId}` can only self-register as `role: 'client'` and `active: true`. Deactivated users (`active: false`) are synchronously blocked from all authenticated client and staff operations across `/users`, `/enquiries`, `/demoBookings`, `/supportTickets`, `/projects`, `/quotations`, and `/auditLogs`.
 3. **Least-Privilege Role Separation**:
-   - `super_admin`: Full platform control, role assignment including `super_admin`, system bootstrap sealing.
+   - `super_admin`: Full platform control, role assignment including `super_admin`.
    - `admin`: User account activation and non-super-admin role assignments, audit log reads, full operational overrides.
    - `sales_officer`: Enquiries, demo bookings, contact messages, and quotations.
    - `project_manager`: Client delivery projects.
@@ -17,8 +17,8 @@
 7. **CMS Draft Isolation**: Public visitors may only `get` or `list` `/cmsSettings/{settingId}` and `/cmsContent/{entryId}` documents where `status == 'published'`. Draft documents are restricted exclusively to `content_manager`, `admin`, and `super_admin`.
 
 ## 2. Adversarial Payloads Blocked ("Dirty Dozen+")
-1. Self-promotion payload on `/users/{uid}` with `role: 'super_admin'` without atomic unclaimed `/system/bootstrap` -> **DENIED**.
-2. Second claim attempt on `/system/bootstrap` after initial bootstrap exists -> **DENIED**.
+1. Self-promotion payload on `/users/{uid}` with `role: 'super_admin'` -> **DENIED**.
+2. Browser read or write at `/system/bootstrap` -> **DENIED**.
 3. Deactivated account (`active: false`) creating a support ticket, reading a quotation, or updating a profile -> **DENIED**.
 4. Standard `admin` attempting to demote or modify a `super_admin`, or promote a user to `super_admin` -> **DENIED**.
 5. Cross-role privilege abuse (`support_officer` creating a quotation or `content_manager` reading `/auditLogs`) -> **DENIED**.

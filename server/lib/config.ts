@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import appletConfig from '../../firebase-applet-config.json';
 import { CurrencyCode } from '../../src/types/domain';
 
 export function parseBooleanFlag(value: unknown, fallback = false): boolean {
@@ -19,29 +20,23 @@ export interface ServerFirebaseConfig {
 }
 
 export function getServerFirebaseConfig(env: NodeJS.ProcessEnv = process.env): ServerFirebaseConfig {
-  let fileConfig: { projectId?: string; firestoreDatabaseId?: string } = {};
-  try {
-    const configPath = path.resolve(process.cwd(), 'firebase-applet-config.json');
-    if (fs.existsSync(configPath)) {
-      fileConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-    }
-  } catch {
-    // ignore invalid file config
-  }
+  const webFields = [
+    env.VITE_FIREBASE_API_KEY, env.VITE_FIREBASE_AUTH_DOMAIN,
+    env.VITE_FIREBASE_PROJECT_ID, env.VITE_FIREBASE_APP_ID,
+  ];
+  const webOverride = webFields.every((field) => field?.trim()) &&
+    env.VITE_FIREBASE_PROJECT_ID?.trim() !== 'remixed-project-id';
+  const hasApplet = Boolean(
+    appletConfig.projectId?.trim() && appletConfig.projectId !== 'remixed-project-id' &&
+    appletConfig.apiKey?.trim() && appletConfig.authDomain?.trim() && appletConfig.appId?.trim()
+  );
+  const projectId = webOverride
+    ? env.VITE_FIREBASE_PROJECT_ID!.trim()
+    : hasApplet ? appletConfig.projectId.trim() : null;
+  const firestoreDatabaseId = (webOverride
+    ? env.VITE_FIREBASE_DATABASE_ID?.trim()
+    : hasApplet ? appletConfig.firestoreDatabaseId?.trim() : undefined) || '(default)';
 
-  const projectId =
-    env.FIREBASE_PROJECT_ID?.trim() ||
-    env.VITE_FIREBASE_PROJECT_ID?.trim() ||
-    (fileConfig.projectId && fileConfig.projectId !== 'remixed-project-id'
-      ? fileConfig.projectId.trim()
-      : '') ||
-    null;
-
-  const firestoreDatabaseId =
-    env.FIREBASE_DATABASE_ID?.trim() ||
-    env.VITE_FIREBASE_DATABASE_ID?.trim() ||
-    fileConfig.firestoreDatabaseId?.trim() ||
-    '(default)';
 
   return {
     projectId,

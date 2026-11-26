@@ -52,8 +52,13 @@ export interface ClientFeatureFlags {
 export function getClientFeatureFlags(
   env: Record<string, unknown> = import.meta.env as unknown as Record<string, unknown>
 ): ClientFeatureFlags {
+  const hasWebOverride = [env.VITE_FIREBASE_API_KEY, env.VITE_FIREBASE_AUTH_DOMAIN,
+    env.VITE_FIREBASE_PROJECT_ID, env.VITE_FIREBASE_APP_ID]
+    .every((value) => typeof value === 'string' && value.trim()) &&
+    String(env.VITE_FIREBASE_PROJECT_ID).trim() !== 'remixed-project-id';
   return {
-    firebase: isFirebaseFeatureEnabled(env.VITE_FEATURE_FIREBASE),
+    firebase: isFirebaseFeatureEnabled(env.VITE_FEATURE_FIREBASE,
+      hasWebOverride || hasValidAppletConfig(firebaseAppletConfig)),
     payments: parseBooleanFlag(env.VITE_FEATURE_PAYMENTS, false),
     googleCalendar: parseBooleanFlag(env.VITE_FEATURE_GOOGLE_CALENDAR, false),
     whatsapp: parseBooleanFlag(env.VITE_FEATURE_WHATSAPP, false),
