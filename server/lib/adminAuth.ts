@@ -88,14 +88,23 @@ export async function evaluateAdminRequest(
         uid: decoded.uid,
         role: userDoc.role,
       };
-    } catch (err) {
+    } catch {
       return {
         authorized: false,
         statusCode: 401,
         mode: 'firebase-rbac',
-        error: err instanceof Error ? err.message : 'Invalid Firebase authentication token.',
+        error: 'Unable to verify the Firebase staff session.',
       };
     }
+  }
+
+  if (env.NODE_ENV === 'production' || isServerlessRuntime(env)) {
+    return {
+      authorized: false,
+      statusCode: 401,
+      mode: 'firebase-rbac',
+      error: 'Administrative authentication requires a verified Firebase staff account.',
+    };
   }
 
   const configuredKey = env.ADMIN_ACCESS_KEY?.trim() || '';
@@ -135,15 +144,6 @@ export async function evaluateAdminRequest(
       statusCode: 401,
       mode: 'firebase-rbac',
       error: 'Administrative authentication required via verified Firebase Staff Bearer token.',
-    };
-  }
-
-  if (env.NODE_ENV === 'production' || isServerlessRuntime(env)) {
-    return {
-      authorized: false,
-      statusCode: 503,
-      mode: 'access-key',
-      error: 'Administrative routes require Firebase Authentication or a server-configured ADMIN_ACCESS_KEY.',
     };
   }
 

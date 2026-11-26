@@ -8,13 +8,7 @@ import {
   testConnection,
 } from '../lib/firebase/client';
 import { isFirebaseReady } from '../lib/firebase/config';
-import {
-  BootstrapStatus,
-  claimInitialSuperAdmin,
-  getBootstrapStatus,
-  sealBootstrapForExistingAdmin,
-  syncUserAccountOnSignIn,
-} from '../lib/firebase/firestoreService';
+import { syncUserAccountOnSignIn } from '../lib/firebase/firestoreService';
 import { UserAccountRecord } from '../types/domain';
 
 interface FirebaseContextValue {
@@ -28,13 +22,10 @@ interface FirebaseContextValue {
   isDeactivated: boolean;
   authError: string | null;
   connectionHealth: FirebaseConnectionHealth | null;
-  bootstrapStatus: BootstrapStatus;
   signingIn: boolean;
   signInWithGoogle: () => Promise<void>;
   signOutUser: () => Promise<void>;
   recheckConnection: () => Promise<void>;
-  provisionInitialSuperAdmin: () => Promise<void>;
-  sealBootstrapLock: () => Promise<void>;
   getIdToken: () => Promise<string | null>;
 }
 
@@ -59,10 +50,6 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   const [authError, setAuthError] = useState<string | null>(null);
   const [signingIn, setSigningIn] = useState(false);
   const [connectionHealth, setConnectionHealth] = useState<FirebaseConnectionHealth | null>(null);
-  const [bootstrapStatus, setBootstrapStatus] = useState<BootstrapStatus>({
-    checked: false,
-    claimed: false,
-  });
 
   const recheckConnection = useCallback(async () => {
     const health = await testConnection();
@@ -84,7 +71,6 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
       setAuthError(null);
       if (!nextUser) {
         setUserAccount(null);
-        setBootstrapStatus({ checked: false, claimed: false });
         setAuthReady(true);
         return;
       }
@@ -96,10 +82,6 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
           setAuthError(
             'Your account has been deactivated by an administrator. Contact DayTech Solutions support for assistance.'
           );
-        }
-        if (nextUser.emailVerified) {
-          const bs = await getBootstrapStatus().catch(() => ({ checked: false, claimed: true }));
-          setBootstrapStatus(bs);
         }
       } catch (err) {
         setAuthError(formatFirebaseAuthError(err));
@@ -135,19 +117,6 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
     setAuthError(null);
   };
 
-  const provisionInitialSuperAdmin = async () => {
-    if (!user) throw new Error('Sign in with Google first.');
-    const updated = await claimInitialSuperAdmin(user);
-    setUserAccount(updated);
-    setBootstrapStatus({ checked: true, claimed: true, initialSuperAdminUid: user.uid });
-  };
-
-  const sealBootstrapLock = async () => {
-    if (!user) return;
-    await sealBootstrapForExistingAdmin(user);
-    setBootstrapStatus({ checked: true, claimed: true, initialSuperAdminUid: user.uid });
-  };
-
   const getIdToken = useCallback(async () => {
     if (!user) return null;
     return user.getIdToken();
@@ -171,13 +140,10 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
         isDeactivated,
         authError,
         connectionHealth,
-        bootstrapStatus,
         signingIn,
         signInWithGoogle,
         signOutUser,
         recheckConnection,
-        provisionInitialSuperAdmin,
-        sealBootstrapLock,
         getIdToken,
       }}
     >

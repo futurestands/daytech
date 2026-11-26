@@ -26,14 +26,16 @@ All optional external integrations remain **disabled** (`false`) until credentia
 
 ## Accessing the Administrative Dashboard (`/admin`) Securely
 
-1. **Option 1 — Firebase Staff Sign-In (Recommended for Cloud/Vercel):** Navigate to `/admin` and sign in with an authorised DayTech staff Google account (`super_admin`, `admin`, `sales_officer`, etc.). Public Google accounts default strictly to `client`.
-2. **Option 2 — Backend Server Key (`ADMIN_ACCESS_KEY`):** Set a strong secret in `ADMIN_ACCESS_KEY` in your server environment (never prefix with `VITE_`) to unlock the local server console via `x-admin-token`.
+1. **Firebase Staff Sign-In:** Navigate to `/admin` and sign in with an authorised DayTech staff Google account (`super_admin`, `admin`, `sales_officer`, etc.). Public Google accounts default strictly to `client`.
+2. **Local development only — Backend Server Key (`ADMIN_ACCESS_KEY`):** Set a strong secret in `ADMIN_ACCESS_KEY` in your server environment (never prefix with `VITE_`) to unlock the local server console via `x-admin-token`.
+
+See [Firebase authentication and provisioning](SECURITY_GUIDE.md) for authorised domains and initial administrator setup.
 
 ## Local Installation & Running
 
 1. Install dependencies:
    ```bash
-   npm install
+   bun install --frozen-lockfile
    ```
 2. Run development server (port 3000):
    ```bash

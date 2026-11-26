@@ -435,7 +435,7 @@ export function AdminPage() {
           setServerUnlocked(false);
           setServerData(null);
           if (tokenOverride) {
-            setServerError('Invalid ADMIN_ACCESS_KEY or production key unconfigured.');
+            setServerError('The local server rejected the access key.');
           }
           return;
         }
@@ -456,7 +456,7 @@ export function AdminPage() {
   );
 
   useEffect(() => {
-    if (!usingFirestoreAdmin) {
+    if (import.meta.env.DEV && !usingFirestoreAdmin) {
       fetchServerOverview();
     }
   }, [usingFirestoreAdmin, fetchServerOverview]);
@@ -975,15 +975,14 @@ export function AdminPage() {
                 Administrator Access Required
               </h1>
               <p className="mt-2 text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-                Sign in with an authorised DayTech staff Google account (Firebase RBAC) or enter the server-configured{' '}
-                <span className="font-mono">ADMIN_ACCESS_KEY</span>.
+                Sign in with an authorised DayTech staff Google account.
               </p>
             </div>
 
             {firebaseReady && (
               <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-[#F8FAFC] dark:bg-[#0B1120] space-y-3">
                 <p className="text-xs font-semibold text-[#0B1120] dark:text-white">
-                  Option 1 · Firebase Staff Sign-In (Project: daytech-bba8f)
+                  Firebase Staff Sign-In
                 </p>
                 {authError && (
                   <p className="text-xs text-red-600 dark:text-red-400">{authError}</p>
@@ -1020,36 +1019,38 @@ export function AdminPage() {
               </div>
             )}
 
-            <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-3">
-              <p className="text-xs font-semibold text-[#0B1120] dark:text-white">
-                Option 2 · Backend Server Access Key (ADMIN_ACCESS_KEY)
-              </p>
-              {serverError && (
-                <p className="text-xs text-red-600 dark:text-red-400">{serverError}</p>
-              )}
-              <form onSubmit={handleUnlock} className="space-y-3">
-                <input
-                  type="password"
-                  value={adminToken}
-                  onChange={(e) => setAdminToken(e.target.value)}
-                  placeholder="Enter ADMIN_ACCESS_KEY"
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-[#F8FAFC] dark:bg-[#0B1120] text-sm text-[#0B1120] dark:text-white"
-                />
-                <button
-                  type="submit"
-                  disabled={loadingServer}
-                  className="w-full py-2.5 rounded-lg bg-[#2563EB] text-white text-sm font-semibold"
-                >
-                  {loadingServer ? 'Verifying...' : 'Unlock Server Console'}
-                </button>
-              </form>
-              <div className="text-xs text-slate-500 dark:text-slate-400 space-y-1 pt-2">
-                <p>
-                  <span className="font-mono">ADMIN_ACCESS_KEY</span> is verified strictly on the server via{' '}
-                  <span className="font-mono">x-admin-token</span> and never exposed in frontend bundles.
+            {import.meta.env.DEV && (
+              <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-3">
+                <p className="text-xs font-semibold text-[#0B1120] dark:text-white">
+                  Local development access key
                 </p>
+                {serverError && (
+                  <p className="text-xs text-red-600 dark:text-red-400">{serverError}</p>
+                )}
+                <form onSubmit={handleUnlock} className="space-y-3">
+                  <input
+                    type="password"
+                    value={adminToken}
+                    onChange={(e) => setAdminToken(e.target.value)}
+                    placeholder="Enter ADMIN_ACCESS_KEY"
+                    className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-[#F8FAFC] dark:bg-[#0B1120] text-sm text-[#0B1120] dark:text-white"
+                  />
+                  <button
+                    type="submit"
+                    disabled={loadingServer}
+                    className="w-full py-2.5 rounded-lg bg-[#2563EB] text-white text-sm font-semibold"
+                  >
+                    {loadingServer ? 'Verifying...' : 'Unlock Server Console'}
+                  </button>
+                </form>
+                <div className="text-xs text-slate-500 dark:text-slate-400 space-y-1 pt-2">
+                  <p>
+                    <span className="font-mono">ADMIN_ACCESS_KEY</span> is verified strictly on the server via{' '}
+                    <span className="font-mono">x-admin-token</span> and never exposed in frontend bundles.
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       ) : (

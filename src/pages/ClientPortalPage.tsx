@@ -81,14 +81,24 @@ export function ClientPortalPage() {
     signingIn,
     signInWithGoogle,
     signOutUser,
+    getIdToken,
   } = useFirebase();
 
   const [activeTab, setActiveTab] = useState<PortalTab>('lookup');
   const [refInput, setRefInput] = useState(searchParams.get('ref') || '');
-  const [emailInput, setEmailInput] = useState('');
+  const shareToken = searchParams.get('token');
   const [loading, setLoading] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
-  const [lookupResult, setLookupResult] = useState<LookupResult | null>(null);
+  const [lookupResponse, setLookupResponse] = useState<{
+    result: LookupResult;
+    ownerUid?: string;
+    shareToken?: string;
+  } | null>(null);
+  const lookupResult = lookupResponse && (lookupResponse.shareToken
+    ? lookupResponse.shareToken === shareToken
+    : lookupResponse.ownerUid === user?.uid && userAccount?.active)
+    ? lookupResponse.result
+    : null;
 
   const [myEnquiries, setMyEnquiries] = useState<EnquiryRecord[]>([]);
   const [myQuotations, setMyQuotations] = useState<QuotationRecord[]>([]);
@@ -285,36 +295,60 @@ export function ClientPortalPage() {
     };
   }, [firebaseReady, authReady, user]);
 
+  useEffect(() => {
+    if (!shareToken) return;
+    const controller = new AbortController();
+    setLookupResponse(null);
+    setLookupError(null);
+    setLoading(true);
+    void (async () => {
+      try {
+        const response = await fetch(
+          `/api/portal/lookup?${new URLSearchParams({ token: shareToken })}`,
+          { signal: controller.signal }
+        );
+        const data = await response.json();
+        if (controller.signal.aborted) return;
+        if (!response.ok) {
+          setLookupError(data.error || 'This quotation link could not be opened.');
+          return;
+        }
+        setLookupResponse({ result: data, shareToken });
+      } catch {
+        if (!controller.signal.aborted) setLookupError('Unable to open the quotation link. Please try again.');
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    })();
+    return () => controller.abort();
+  }, [shareToken]);
+
   const handleLookup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLookupError(null);
-    setLookupResult(null);
+    setLookupResponse(null);
 
-    if (!refInput.trim() || !emailInput.trim()) {
-      setLookupError('Please enter both your reference number and matching email address.');
+    if (!refInput.trim() || !user || !userAccount?.active) {
+      setLookupError('Sign in with Google and enter your reference number.');
       return;
     }
 
     setLoading(true);
     try {
-      const res = await fetch(
-        `/api/portal/lookup?ref=${encodeURIComponent(refInput.trim())}&email=${encodeURIComponent(
-          emailInput.trim()
-        )}`
+      const token = await getIdToken();
+      if (!token) throw new Error('Sign in with Google to look up a reference.');
+      const response = await fetch(
+        `/api/portal/lookup?${new URLSearchParams({ ref: refInput.trim() })}`,
+        { headers: { Authorization: `Bearer ${token}` } }
       );
-      const data = await res.json();
-      if (!res.ok) {
-        setLookupError(
-          data.error ||
-            'No matching record found in local server lookup. Sign in with Google below if your enquiry was submitted while authenticated.'
-        );
+      const data = await response.json();
+      if (!response.ok) {
+        setLookupError(data.error || 'Unable to look up this reference.');
         return;
       }
-      setLookupResult(data);
+      setLookupResponse({ result: data, ownerUid: user.uid });
     } catch {
-      setLookupError(
-        'Reference lookup endpoint is unavailable in static hosting. Sign in with Google to inspect your account submissions directly from Cloud Firestore.'
-      );
+      setLookupError('Reference lookup is unavailable. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -582,7 +616,7 @@ export function ClientPortalPage() {
                 </h2>
                 <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-400">
                   Enter the reference number (e.g., <span className="font-mono">DTQ-...</span> or{' '}
-                  <span className="font-mono">DTD-...</span>) and the email address used during submission.
+                  <span className="font-mono">DTD-...</span>) after signing in with Google.
                 </p>
 
                 <form onSubmit={handleLookup} className="mt-6 grid grid-cols-1 sm:grid-cols-12 gap-3">
@@ -592,19 +626,11 @@ export function ClientPortalPage() {
                     onChange={(e) => setRefInput(e.target.value)}
                     placeholder="Reference (DTQ-2026-...)"
                     aria-label="Reference Number"
-                    className="sm:col-span-5 px-3.5 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-[#F8FAFC] dark:bg-[#0B1120] text-sm font-mono text-[#0B1120] dark:text-white"
-                  />
-                  <input
-                    type="email"
-                    value={emailInput}
-                    onChange={(e) => setEmailInput(e.target.value)}
-                    placeholder="Submitted email address"
-                    aria-label="Submitted Email Address"
-                    className="sm:col-span-5 px-3.5 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-[#F8FAFC] dark:bg-[#0B1120] text-sm text-[#0B1120] dark:text-white"
+                    className="sm:col-span-10 px-3.5 py-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-[#F8FAFC] dark:bg-[#0B1120] text-sm font-mono text-[#0B1120] dark:text-white"
                   />
                   <button
                     type="submit"
-                    disabled={loading}
+                    disabled={loading || !userAccount?.active}
                     className="sm:col-span-2 px-4 py-2.5 rounded-lg bg-[#2563EB] hover:bg-blue-700 text-white text-sm font-semibold transition-colors"
                   >
                     {loading ? 'Checking...' : 'Check'}

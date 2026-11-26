@@ -77,14 +77,6 @@ service cloud.firestore {
         getUserRole() in ['super_admin', 'admin', 'content_manager', 'sales_officer', 'project_manager', 'support_officer'];
     }
 
-    function isValidBootstrap(data) {
-      return data.keys().hasAll(['initialized', 'initialSuperAdminUid', 'claimedAt']) &&
-        data.keys().hasOnly(['initialized', 'initialSuperAdminUid', 'claimedAt']) &&
-        data.initialized is bool && data.initialized == true &&
-        data.initialSuperAdminUid is string && data.initialSuperAdminUid.size() >= 1 && data.initialSuperAdminUid.size() <= 128 &&
-        data.claimedAt is timestamp;
-    }
-
     function isValidEnquiry(data) {
       return data.keys().hasAll([
           'referenceNumber', 'status', 'fullName', 'organisation', 'email',
@@ -321,20 +313,9 @@ service cloud.firestore {
       allow list, write: if false;
     }
 
-    // One-time atomic initial Super Administrator bootstrap lock
+    // Provisioning metadata is restricted to trusted Firestore operators.
     match /system/{docId} {
-      allow get: if isValidId(docId) && docId == 'bootstrap' && isVerifiedUser();
-      allow list: if false;
-      allow create: if isValidId(docId) &&
-        docId == 'bootstrap' &&
-        isVerifiedUser() &&
-        isValidBootstrap(incoming()) &&
-        incoming().initialSuperAdminUid == request.auth.uid &&
-        incoming().claimedAt == request.time &&
-        !exists(/databases/$(database)/documents/system/bootstrap) &&
-        getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin' &&
-        getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.active == true;
-      allow update, delete: if false;
+      allow read, write: if false;
     }
 
     // Quotation enquiries
@@ -407,15 +388,8 @@ service cloud.firestore {
         incoming().uid == request.auth.uid &&
         incoming().active == true &&
         incoming().createdAt == request.time &&
-        incoming().updatedAt == request.time && (
-          incoming().role == 'client' ||
-          (
-            incoming().role == 'super_admin' &&
-            !exists(/databases/$(database)/documents/system/bootstrap) &&
-            existsAfter(/databases/$(database)/documents/system/bootstrap) &&
-            getAfter(/databases/$(database)/documents/system/bootstrap).data.initialSuperAdminUid == request.auth.uid
-          )
-        );
+        incoming().updatedAt == request.time &&
+        incoming().role == 'client';
       allow update: if isValidId(userId) &&
         isValidUserAccount(incoming()) &&
         incoming().uid == existing().uid &&
@@ -439,17 +413,6 @@ service cloud.firestore {
             incoming().role == existing().role &&
             incoming().active == existing().active &&
             incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'organisationName', 'updatedAt'])
-          ) ||
-          (
-            isVerifiedUser() &&
-            existing().active == true &&
-            request.auth.uid == userId &&
-            incoming().role == 'super_admin' &&
-            incoming().active == true &&
-            !exists(/databases/$(database)/documents/system/bootstrap) &&
-            existsAfter(/databases/$(database)/documents/system/bootstrap) &&
-            getAfter(/databases/$(database)/documents/system/bootstrap).data.initialSuperAdminUid == request.auth.uid &&
-            incoming().diff(existing()).affectedKeys().hasOnly(['role', 'updatedAt'])
           )
         );
       allow delete: if isValidId(userId) && isSuperAdmin() && request.auth.uid != userId;
