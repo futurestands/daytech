@@ -64,6 +64,8 @@ export function QuotePage() {
     defaultCurrency === 'USD' || defaultCurrency === 'KES' ? defaultCurrency : 'UGX';
   const storageAvailable = publicConfig.storage?.persistent !== false;
 
+  const locationParam = searchParams.get('location');
+
   const [form, setForm] = useState({
     fullName: '',
     organisation: '',
@@ -73,7 +75,7 @@ export function QuotePage() {
     industry: searchParams.get('industry') || INDUSTRIES[0].name,
     requiredService: searchParams.get('service') || SERVICES[0].title,
     interestedProduct: searchParams.get('product') || 'None / Custom Solution',
-    projectDescription: '',
+    projectDescription: locationParam ? `Deployment / Site Location: ${locationParam}\n\n` : '',
     currency: safeCurrency,
     budgetRange: BUDGET_OPTIONS[safeCurrency][1],
     timeline: '1 – 3 Months',

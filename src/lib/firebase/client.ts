@@ -1,7 +1,7 @@
-import { initializeApp, FirebaseApp } from 'firebase/app';
+import { FirebaseApp, getApp, getApps, initializeApp } from 'firebase/app';
 import { Auth, getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { doc, Firestore, getDocFromServer, getFirestore } from 'firebase/firestore';
-import firebaseConfig from '../../../firebase-applet-config.json';
+import { resolveFirebaseConfig, TARGET_FIREBASE_PROJECT_ID } from './config';
 
 export enum OperationType {
   CREATE = 'create',
@@ -29,20 +29,27 @@ export interface FirestoreErrorInfo {
   };
 }
 
-const hasValidProject =
-  Boolean(firebaseConfig?.projectId) &&
-  firebaseConfig.projectId !== 'remixed-project-id' &&
-  Boolean(firebaseConfig?.apiKey) &&
-  Boolean(firebaseConfig?.appId);
+export interface FirebaseConnectionHealth {
+  status: 'connected' | 'disabled' | 'unavailable' | 'misconfigured';
+  message: string;
+  projectId: string | null;
+  authDomain: string | null;
+  databaseId: string | null;
+  source: string;
+  checkedAt: string;
+}
+
+const resolution = resolveFirebaseConfig();
 
 let appInstance: FirebaseApp | null = null;
 let dbInstance: Firestore | null = null;
 let authInstance: Auth | null = null;
 
-if (hasValidProject) {
-  appInstance = initializeApp(firebaseConfig);
-  dbInstance = firebaseConfig.firestoreDatabaseId
-    ? getFirestore(appInstance, firebaseConfig.firestoreDatabaseId)
+if (resolution.enabled && resolution.config) {
+  const cfg = resolution.config;
+  appInstance = getApps().length > 0 ? getApp() : initializeApp(cfg);
+  dbInstance = cfg.firestoreDatabaseId
+    ? getFirestore(appInstance, cfg.firestoreDatabaseId)
     : getFirestore(appInstance);
   authInstance = getAuth(appInstance);
 }
@@ -51,6 +58,9 @@ export const firebaseApp = appInstance;
 export const db = dbInstance as Firestore;
 export const auth = authInstance as Auth;
 export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: 'select_account' });
+
+export const firebaseConfigResolution = resolution;
 
 export function handleFirestoreError(
   error: unknown,
@@ -79,17 +89,100 @@ export function handleFirestoreError(
   throw new Error(JSON.stringify(errInfo));
 }
 
-export async function testConnection(): Promise<void> {
-  if (!dbInstance) return;
-  try {
-    await getDocFromServer(doc(dbInstance, 'test', 'connection'));
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.error('Please check your Firebase configuration.');
-    }
+export function formatFirebaseAuthError(error: unknown): string {
+  const code = (error as { code?: string })?.code || '';
+  const host = typeof window !== 'undefined' ? window.location.hostname : 'this domain';
+
+  switch (code) {
+    case 'auth/unauthorized-domain':
+      return `Domain "${host}" is not authorised for Google Sign-In. Add "${host}" under Firebase Console → Authentication → Settings → Authorized domains (project: ${TARGET_FIREBASE_PROJECT_ID}).`;
+    case 'auth/operation-not-allowed':
+      return `Google Sign-In provider is disabled in Firebase Console for project ${TARGET_FIREBASE_PROJECT_ID}.`;
+    case 'auth/popup-closed-by-user':
+      return 'Google sign-in popup was closed before completion.';
+    case 'auth/popup-blocked':
+      return 'Sign-in popup was blocked by your browser. Please allow popups for this site and try again.';
+    case 'auth/network-request-failed':
+      return 'Network connection to Firebase Authentication failed. Verify internet connectivity and retry.';
+    default:
+      return error instanceof Error ? error.message : 'Firebase authentication failed.';
   }
 }
 
-if (typeof window !== 'undefined' && dbInstance) {
-  void testConnection();
+export async function testConnection(): Promise<FirebaseConnectionHealth> {
+  const checkedAt = new Date().toISOString();
+  const projectId = resolution.config?.projectId || null;
+  const authDomain = resolution.config?.authDomain || null;
+  const databaseId = resolution.config?.firestoreDatabaseId || '(default)';
+
+  if (!resolution.enabled) {
+    return {
+      status: resolution.source === 'disabled' ? 'disabled' : 'misconfigured',
+      message: resolution.diagnosticNote,
+      projectId,
+      authDomain,
+      databaseId,
+      source: resolution.source,
+      checkedAt,
+    };
+  }
+
+  if (!dbInstance) {
+    return {
+      status: 'misconfigured',
+      message: 'Cloud Firestore failed to initialise. Verify Firebase SDK credentials.',
+      projectId,
+      authDomain,
+      databaseId,
+      source: resolution.source,
+      checkedAt,
+    };
+  }
+
+  try {
+    await getDocFromServer(doc(dbInstance, 'test', 'connection'));
+    return {
+      status: 'connected',
+      message: `Connected to Cloud Firestore (${projectId} / ${databaseId}).`,
+      projectId,
+      authDomain,
+      databaseId,
+      source: resolution.source,
+      checkedAt,
+    };
+  } catch (error) {
+    const rawMsg = error instanceof Error ? error.message : String(error);
+    const lower = rawMsg.toLowerCase();
+    if (lower.includes('offline') || lower.includes('unavailable') || lower.includes('network')) {
+      return {
+        status: 'unavailable',
+        message: `Cloud Firestore (${projectId}) is currently unreachable or offline. Verify network connectivity or check Firebase project status.`,
+        projectId,
+        authDomain,
+        databaseId,
+        source: resolution.source,
+        checkedAt,
+      };
+    }
+    if (lower.includes('permission')) {
+      return {
+        status: 'misconfigured',
+        message: `Connected to ${projectId}, but Firestore rules rejected the connection probe (test/connection). Deploy updated firestore.rules.`,
+        projectId,
+        authDomain,
+        databaseId,
+        source: resolution.source,
+        checkedAt,
+      };
+    }
+    return {
+      status: 'unavailable',
+      message: `Firestore connectivity warning: ${rawMsg}`,
+      projectId,
+      authDomain,
+      databaseId,
+      source: resolution.source,
+      checkedAt,
+    };
+  }
 }

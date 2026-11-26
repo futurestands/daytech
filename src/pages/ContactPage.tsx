@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { AlertCircle, CheckCircle2, Globe, Mail, MapPin, Phone } from 'lucide-react';
 import { z } from 'zod';
 import { SEOHead } from '../components/SEOHead';
+import { DayTechCoverageMap } from '../components/DayTechCoverageMap';
 import { useAppContext } from '../context/AppContext';
 import { createContactMessageInFirestore } from '../lib/firebase/firestoreService';
 
@@ -311,6 +312,12 @@ export function ContactPage() {
               </form>
             )}
           </div>
+        </div>
+      </section>
+
+      <section className="pb-16 bg-[#F8FAFC] dark:bg-[#0B1120]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <DayTechCoverageMap />
         </div>
       </section>
     </div>

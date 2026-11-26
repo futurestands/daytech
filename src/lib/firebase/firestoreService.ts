@@ -59,6 +59,108 @@ export function toIsoString(ts: unknown): string {
   return new Date().toISOString();
 }
 
+export interface BootstrapStatus {
+  checked: boolean;
+  claimed: boolean;
+  initialSuperAdminUid?: string;
+}
+
+export async function getBootstrapStatus(): Promise<BootstrapStatus> {
+  if (!db) return { checked: false, claimed: false };
+  const path = 'system/bootstrap';
+  try {
+    const snap = await getDoc(doc(db, 'system', 'bootstrap'));
+    if (!snap.exists()) {
+      return { checked: true, claimed: false };
+    }
+    const data = snap.data();
+    return {
+      checked: true,
+      claimed: Boolean(data.initialized),
+      initialSuperAdminUid: data.initialSuperAdminUid ? String(data.initialSuperAdminUid) : undefined,
+    };
+  } catch (error) {
+    handleFirestoreError(error, OperationType.GET, path);
+  }
+}
+
+export async function claimInitialSuperAdmin(user: User): Promise<UserAccountRecord> {
+  if (!db) {
+    throw new Error('Firebase Firestore is disabled or unavailable.');
+  }
+  if (!user.emailVerified) {
+    throw new Error('A verified Google email address is required to provision the initial super administrator.');
+  }
+
+  const bootstrapRef = doc(db, 'system', 'bootstrap');
+  const userRef = doc(db, 'users', user.uid);
+  const existingUserSnap = await getDoc(userRef).catch((err) =>
+    handleFirestoreError(err, OperationType.GET, `users/${user.uid}`)
+  );
+
+  const email = (user.email || '').trim();
+  const displayName = clampStr(user.displayName || email.split('@')[0] || 'DayTech Super Admin', 120);
+  const batch = writeBatch(db);
+
+  batch.set(bootstrapRef, {
+    initialized: true,
+    initialSuperAdminUid: clampStr(user.uid, 128),
+    claimedAt: serverTimestamp(),
+  });
+
+  if (existingUserSnap.exists()) {
+    const current = existingUserSnap.data();
+    if (current.active === false) {
+      throw new Error('This account has been deactivated and cannot claim super administrator access.');
+    }
+    if (current.role !== 'super_admin') {
+      batch.update(userRef, {
+        role: 'super_admin',
+        updatedAt: serverTimestamp(),
+      });
+    }
+  } else {
+    batch.set(userRef, {
+      uid: clampStr(user.uid, 128),
+      displayName,
+      role: 'super_admin',
+      active: true,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  try {
+    await batch.commit();
+    await writeAuditLog('INITIAL_SUPER_ADMIN_PROVISIONED', user.uid);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, 'system/bootstrap');
+  }
+
+  return {
+    uid: user.uid,
+    displayName,
+    role: 'super_admin',
+    active: true,
+    createdAt: existingUserSnap.exists() ? toIsoString(existingUserSnap.data().createdAt) : new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export async function sealBootstrapForExistingAdmin(user: User): Promise<void> {
+  if (!db) return;
+  try {
+    await setDoc(doc(db, 'system', 'bootstrap'), {
+      initialized: true,
+      initialSuperAdminUid: clampStr(user.uid, 128),
+      claimedAt: serverTimestamp(),
+    });
+    await writeAuditLog('BOOTSTRAP_LOCK_SEALED', user.uid);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, 'system/bootstrap');
+  }
+}
+
 export interface EnquiryInputPayload {
   fullName: string;
   organisation: string;
@@ -81,7 +183,7 @@ export async function createEnquiryInFirestore(
 ): Promise<{ referenceNumber: string; createdAt: string; status: EnquiryRecord['status'] }> {
   const referenceNumber = generateReference('DTQ');
   const path = `enquiries/${referenceNumber}`;
-  const currentUid = auth?.currentUser?.uid;
+  const currentUser = auth?.currentUser;
 
   const payload: Record<string, unknown> = {
     referenceNumber,
@@ -104,8 +206,8 @@ export async function createEnquiryInFirestore(
     updatedAt: serverTimestamp(),
   };
 
-  if (currentUid) {
-    payload.submitterUid = clampStr(currentUid, 128);
+  if (currentUser?.uid && currentUser.emailVerified) {
+    payload.submitterUid = clampStr(currentUser.uid, 128);
   }
 
   try {
@@ -139,7 +241,7 @@ export async function createDemoBookingInFirestore(
 ): Promise<{ referenceNumber: string; createdAt: string; status: DemoBookingRecord['status']; timezone: string }> {
   const referenceNumber = generateReference('DTD');
   const path = `demoBookings/${referenceNumber}`;
-  const currentUid = auth?.currentUser?.uid;
+  const currentUser = auth?.currentUser;
   const timezone = clampStr(input.timezone || 'Africa/Kampala', 80);
 
   const payload: Record<string, unknown> = {
@@ -160,8 +262,8 @@ export async function createDemoBookingInFirestore(
     updatedAt: serverTimestamp(),
   };
 
-  if (currentUid) {
-    payload.submitterUid = clampStr(currentUid, 128);
+  if (currentUser?.uid && currentUser.emailVerified) {
+    payload.submitterUid = clampStr(currentUser.uid, 128);
   }
 
   try {
@@ -216,6 +318,11 @@ export async function createContactMessageInFirestore(
   }
 }
 
+/**
+ * Synchronizes user profile on Google Sign-In.
+ * Public sign-up ALWAYS assigns least-privilege role 'client' (never hardcoded admin emails).
+ * Existing user records retain their database-assigned role and active status.
+ */
 export async function syncUserAccountOnSignIn(user: User): Promise<UserAccountRecord> {
   const userPath = `users/${user.uid}`;
   const privatePath = `users/${user.uid}/private/info`;
@@ -228,9 +335,38 @@ export async function syncUserAccountOnSignIn(user: User): Promise<UserAccountRe
   }
 
   const email = (user.email || '').trim();
-  const isBootstrappedAdmin =
-    user.emailVerified && email.toLowerCase() === 'mugarurajohnson56@gmail.com';
   const displayName = clampStr(user.displayName || email.split('@')[0] || 'DayTech User', 120);
+
+  if (existingSnap.exists()) {
+    const raw = existingSnap.data();
+    const account: UserAccountRecord = {
+      uid: String(raw.uid || user.uid),
+      displayName: String(raw.displayName || displayName),
+      organisationName: raw.organisationName ? String(raw.organisationName) : undefined,
+      role: raw.role as UserAccountRecord['role'],
+      active: Boolean(raw.active),
+      createdAt: toIsoString(raw.createdAt),
+      updatedAt: toIsoString(raw.updatedAt),
+    };
+
+    if (account.active && email.length >= 5 && user.emailVerified) {
+      try {
+        await setDoc(
+          doc(db, 'users', user.uid, 'private', 'info'),
+          {
+            uid: clampStr(user.uid, 128),
+            email: clampStr(email, 160),
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+      } catch (error) {
+        handleFirestoreError(error, OperationType.WRITE, privatePath);
+      }
+    }
+
+    return account;
+  }
 
   if (email.length >= 5 && user.emailVerified) {
     try {
@@ -248,24 +384,10 @@ export async function syncUserAccountOnSignIn(user: User): Promise<UserAccountRe
     }
   }
 
-  if (existingSnap.exists()) {
-    const raw = existingSnap.data();
-    return {
-      uid: String(raw.uid || user.uid),
-      displayName: String(raw.displayName || displayName),
-      organisationName: raw.organisationName ? String(raw.organisationName) : undefined,
-      role: raw.role as UserAccountRecord['role'],
-      active: Boolean(raw.active),
-      createdAt: toIsoString(raw.createdAt),
-      updatedAt: toIsoString(raw.updatedAt),
-    };
-  }
-
-  const assignedRole: UserAccountRecord['role'] = isBootstrappedAdmin ? 'super_admin' : 'client';
   const newAccountPayload = {
     uid: clampStr(user.uid, 128),
     displayName,
-    role: assignedRole,
+    role: 'client' as const,
     active: true,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -280,7 +402,7 @@ export async function syncUserAccountOnSignIn(user: User): Promise<UserAccountRe
   return {
     uid: user.uid,
     displayName,
-    role: assignedRole,
+    role: 'client',
     active: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -294,7 +416,7 @@ export async function writeAuditLog(action: string, target: string): Promise<voi
   try {
     await addDoc(collection(db, 'auditLogs'), {
       actorUid: clampStr(actor.uid, 128),
-      actorEmail: clampStr(actor.email || 'staff@daytech', 160),
+      actorEmail: clampStr(actor.email || 'user@daytech', 160),
       action: clampStr(action, 100),
       target: clampStr(target, 200),
       createdAt: serverTimestamp(),
@@ -466,7 +588,7 @@ export async function updateUserAccountInFirestore(
 
   try {
     await updateDoc(doc(db, 'users', targetUid), cleanPatch);
-    await writeAuditLog('USER_RBAC_UPDATED', `${targetUid} (${patch.role || 'status'})`);
+    await writeAuditLog('USER_RBAC_UPDATED', `${targetUid} (${patch.role ?? ''} active=${patch.active ?? 'unchanged'})`);
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, path);
   }
@@ -680,7 +802,6 @@ export async function saveQuotationInFirestore(
       `${quotationNumber} (${input.clientOrganisation} · ${input.currency} ${totals.totalAmount})`
     );
 
-    // Sync linked enquiry status when quotation is marked Sent
     if (input.status === 'Sent' && input.enquiryId?.trim()) {
       const enqRef = doc(db, 'enquiries', input.enquiryId.trim());
       const enqSnap = await getDoc(enqRef).catch(() => null);
@@ -712,11 +833,10 @@ export async function updateQuotationStatusInFirestore(
       status,
       updatedAt: serverTimestamp(),
     });
-    if (asStaff) {
-      await writeAuditLog(`QUOTATION_STATUS_${status.toUpperCase()}`, quotationId);
+    if (asStaff || status === 'Accepted' || status === 'Declined') {
+      await writeAuditLog(`QUOTATION_${status.toUpperCase()}`, quotationId);
     }
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, path);
   }
 }
-

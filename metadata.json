@@ -1,6 +1,6 @@
 {
   "name": "DayTech Solutions",
   "description": "DayTech Solutions — Uganda-based enterprise software engineering, IT infrastructure, artificial intelligence, cloud computing, and digital transformation platform.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": ["microphone"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

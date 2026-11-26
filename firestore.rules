@@ -26,10 +26,6 @@ service cloud.firestore {
       return isSignedIn() && request.auth.token.email_verified == true;
     }
 
-    function isBootstrappedAdmin() {
-      return isVerifiedUser() && request.auth.token.email == 'mugarurajohnson56@gmail.com';
-    }
-
     function userDocExists() {
       return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
     }
@@ -42,22 +38,51 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.active == true;
     }
 
+    // Active verified account gate: enforces user deactivation synchronously
+    function isActiveClient() {
+      return isVerifiedUser() && userDocExists() && isUserActive();
+    }
+
+    // Public form submitters may be unauthenticated OR an active verified user
+    function isNotDeactivatedSubmitter() {
+      return !isSignedIn() || (isVerifiedUser() && (!userDocExists() || isUserActive()));
+    }
+
+    function isSuperAdmin() {
+      return isActiveClient() && getUserRole() == 'super_admin';
+    }
+
     function isAdmin() {
-      return isBootstrappedAdmin() || (
-        isVerifiedUser() &&
-        userDocExists() &&
-        isUserActive() &&
-        getUserRole() in ['super_admin', 'admin']
-      );
+      return isActiveClient() && getUserRole() in ['super_admin', 'admin'];
+    }
+
+    function isSalesStaff() {
+      return isActiveClient() && getUserRole() in ['super_admin', 'admin', 'sales_officer'];
+    }
+
+    function isProjectStaff() {
+      return isActiveClient() && getUserRole() in ['super_admin', 'admin', 'project_manager'];
+    }
+
+    function isSupportStaff() {
+      return isActiveClient() && getUserRole() in ['super_admin', 'admin', 'support_officer'];
+    }
+
+    function isContentStaff() {
+      return isActiveClient() && getUserRole() in ['super_admin', 'admin', 'content_manager'];
     }
 
     function isStaff() {
-      return isBootstrappedAdmin() || (
-        isVerifiedUser() &&
-        userDocExists() &&
-        isUserActive() &&
-        getUserRole() in ['super_admin', 'admin', 'content_manager', 'sales_officer', 'project_manager', 'support_officer']
-      );
+      return isActiveClient() &&
+        getUserRole() in ['super_admin', 'admin', 'content_manager', 'sales_officer', 'project_manager', 'support_officer'];
+    }
+
+    function isValidBootstrap(data) {
+      return data.keys().hasAll(['initialized', 'initialSuperAdminUid', 'claimedAt']) &&
+        data.keys().hasOnly(['initialized', 'initialSuperAdminUid', 'claimedAt']) &&
+        data.initialized is bool && data.initialized == true &&
+        data.initialSuperAdminUid is string && data.initialSuperAdminUid.size() >= 1 && data.initialSuperAdminUid.size() <= 128 &&
+        data.claimedAt is timestamp;
     }
 
     function isValidEnquiry(data) {
@@ -264,28 +289,71 @@ service cloud.firestore {
         data.createdAt is timestamp;
     }
 
+    function isValidCmsSetting(data) {
+      return data.keys().hasAll(['id', 'section', 'status', 'payloadJson', 'updatedByUid', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'section', 'status', 'payloadJson', 'updatedByUid', 'updatedAt']) &&
+        data.id is string && data.id.size() >= 1 && data.id.size() <= 80 &&
+        data.section is string && data.section in ['branding', 'contact', 'homepage', 'seo', 'announcement'] &&
+        data.status is string && data.status in ['draft', 'published'] &&
+        data.payloadJson is string && data.payloadJson.size() >= 2 && data.payloadJson.size() <= 24000 &&
+        data.updatedByUid is string && data.updatedByUid.size() >= 1 && data.updatedByUid.size() <= 128 &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidCmsContentEntry(data) {
+      return data.keys().hasAll(['id', 'contentType', 'slug', 'title', 'status', 'sortOrder', 'payloadJson', 'updatedByUid', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'contentType', 'slug', 'title', 'status', 'sortOrder', 'payloadJson', 'updatedByUid', 'createdAt', 'updatedAt']) &&
+        data.id is string && data.id.size() >= 1 && data.id.size() <= 128 &&
+        data.contentType is string && data.contentType in ['service', 'product', 'industry', 'portfolio', 'post', 'faq', 'announcement'] &&
+        data.slug is string && data.slug.size() >= 1 && data.slug.size() <= 120 &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 200 &&
+        data.status is string && data.status in ['draft', 'published'] &&
+        data.sortOrder is number && data.sortOrder >= 0 && data.sortOrder <= 10000 &&
+        data.payloadJson is string && data.payloadJson.size() >= 2 && data.payloadJson.size() <= 32000 &&
+        data.updatedByUid is string && data.updatedByUid.size() >= 1 && data.updatedByUid.size() <= 128 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
     // Startup connection check document
     match /test/connection {
       allow get: if true;
       allow list, write: if false;
     }
 
+    // One-time atomic initial Super Administrator bootstrap lock
+    match /system/{docId} {
+      allow get: if isValidId(docId) && docId == 'bootstrap' && isVerifiedUser();
+      allow list: if false;
+      allow create: if isValidId(docId) &&
+        docId == 'bootstrap' &&
+        isVerifiedUser() &&
+        isValidBootstrap(incoming()) &&
+        incoming().initialSuperAdminUid == request.auth.uid &&
+        incoming().claimedAt == request.time &&
+        !exists(/databases/$(database)/documents/system/bootstrap) &&
+        getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin' &&
+        getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.active == true;
+      allow update, delete: if false;
+    }
+
     // Quotation enquiries
     match /enquiries/{enquiryId} {
       allow get: if isValidId(enquiryId) && (
-        (isVerifiedUser() && existing().submitterUid == request.auth.uid) || isStaff()
+        (isActiveClient() && existing().submitterUid == request.auth.uid) || isSalesStaff()
       );
-      allow list: if (isVerifiedUser() && resource.data.submitterUid == request.auth.uid) || isStaff();
+      allow list: if (isActiveClient() && resource.data.submitterUid == request.auth.uid) || isSalesStaff();
       allow create: if isValidId(enquiryId) &&
+        isNotDeactivatedSubmitter() &&
         isValidEnquiry(incoming()) &&
         incoming().status == 'New' &&
         !('internalNotes' in incoming()) &&
         incoming().createdAt == request.time &&
         incoming().updatedAt == request.time &&
-        (!('submitterUid' in incoming()) || (isSignedIn() && incoming().submitterUid == request.auth.uid));
+        (!('submitterUid' in incoming()) || (isVerifiedUser() && incoming().submitterUid == request.auth.uid));
       allow update: if isValidId(enquiryId) &&
         isValidEnquiry(incoming()) &&
-        isStaff() &&
+        isSalesStaff() &&
         incoming().referenceNumber == existing().referenceNumber &&
         incoming().createdAt == existing().createdAt &&
         incoming().updatedAt == request.time &&
@@ -297,18 +365,19 @@ service cloud.firestore {
     // Product demonstration bookings
     match /demoBookings/{demoId} {
       allow get: if isValidId(demoId) && (
-        (isVerifiedUser() && existing().submitterUid == request.auth.uid) || isStaff()
+        (isActiveClient() && existing().submitterUid == request.auth.uid) || isSalesStaff()
       );
-      allow list: if (isVerifiedUser() && resource.data.submitterUid == request.auth.uid) || isStaff();
+      allow list: if (isActiveClient() && resource.data.submitterUid == request.auth.uid) || isSalesStaff();
       allow create: if isValidId(demoId) &&
+        isNotDeactivatedSubmitter() &&
         isValidDemoBooking(incoming()) &&
         incoming().status == 'Pending' &&
         incoming().createdAt == request.time &&
         incoming().updatedAt == request.time &&
-        (!('submitterUid' in incoming()) || (isSignedIn() && incoming().submitterUid == request.auth.uid));
+        (!('submitterUid' in incoming()) || (isVerifiedUser() && incoming().submitterUid == request.auth.uid));
       allow update: if isValidId(demoId) &&
         isValidDemoBooking(incoming()) &&
-        isStaff() &&
+        isSalesStaff() &&
         incoming().referenceNumber == existing().referenceNumber &&
         incoming().createdAt == existing().createdAt &&
         incoming().updatedAt == request.time &&
@@ -318,18 +387,19 @@ service cloud.firestore {
 
     // Contact desk messages
     match /contactMessages/{contactId} {
-      allow get: if isValidId(contactId) && isStaff();
-      allow list: if isStaff();
+      allow get: if isValidId(contactId) && (isSalesStaff() || isSupportStaff());
+      allow list: if isSalesStaff() || isSupportStaff();
       allow create: if isValidId(contactId) &&
+        isNotDeactivatedSubmitter() &&
         isValidContactMessage(incoming()) &&
         incoming().createdAt == request.time;
       allow update, delete: if isValidId(contactId) && isAdmin();
     }
 
-    // User accounts (no public self-promotion)
+    // User accounts (no hardcoded emails, no public role escalation, deactivation enforced)
     match /users/{userId} {
-      allow get: if isValidId(userId) && ((isSignedIn() && request.auth.uid == userId) || isAdmin());
-      allow list: if (isSignedIn() && resource.data.uid == request.auth.uid) || isAdmin();
+      allow get: if isValidId(userId) && ((isVerifiedUser() && request.auth.uid == userId) || isAdmin());
+      allow list: if (isVerifiedUser() && resource.data.uid == request.auth.uid) || isAdmin();
       allow create: if isValidId(userId) &&
         isVerifiedUser() &&
         request.auth.uid == userId &&
@@ -337,30 +407,61 @@ service cloud.firestore {
         incoming().uid == request.auth.uid &&
         incoming().active == true &&
         incoming().createdAt == request.time &&
-        incoming().updatedAt == request.time &&
-        (incoming().role == 'client' || isBootstrappedAdmin());
+        incoming().updatedAt == request.time && (
+          incoming().role == 'client' ||
+          (
+            incoming().role == 'super_admin' &&
+            !exists(/databases/$(database)/documents/system/bootstrap) &&
+            existsAfter(/databases/$(database)/documents/system/bootstrap) &&
+            getAfter(/databases/$(database)/documents/system/bootstrap).data.initialSuperAdminUid == request.auth.uid
+          )
+        );
       allow update: if isValidId(userId) &&
         isValidUserAccount(incoming()) &&
         incoming().uid == existing().uid &&
         incoming().createdAt == existing().createdAt &&
         incoming().updatedAt == request.time && (
-          isAdmin() || (
+          (
+            isSuperAdmin() &&
+            !(request.auth.uid == userId && (incoming().role != 'super_admin' || incoming().active == false))
+          ) ||
+          (
+            isAdmin() &&
+            existing().role != 'super_admin' &&
+            incoming().role != 'super_admin' &&
+            !(request.auth.uid == userId && (incoming().role != existing().role || incoming().active == false)) &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['role', 'active', 'organisationName', 'updatedAt'])
+          ) ||
+          (
             isVerifiedUser() &&
+            existing().active == true &&
             request.auth.uid == userId &&
             incoming().role == existing().role &&
             incoming().active == existing().active &&
             incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'organisationName', 'updatedAt'])
+          ) ||
+          (
+            isVerifiedUser() &&
+            existing().active == true &&
+            request.auth.uid == userId &&
+            incoming().role == 'super_admin' &&
+            incoming().active == true &&
+            !exists(/databases/$(database)/documents/system/bootstrap) &&
+            existsAfter(/databases/$(database)/documents/system/bootstrap) &&
+            getAfter(/databases/$(database)/documents/system/bootstrap).data.initialSuperAdminUid == request.auth.uid &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['role', 'updatedAt'])
           )
         );
-      allow delete: if isValidId(userId) && isAdmin();
+      allow delete: if isValidId(userId) && isSuperAdmin() && request.auth.uid != userId;
 
       match /private/{docId} {
-        allow get: if isValidId(userId) && isValidId(docId) && ((isSignedIn() && request.auth.uid == userId) || isAdmin());
+        allow get: if isValidId(userId) && isValidId(docId) && ((isVerifiedUser() && request.auth.uid == userId) || isAdmin());
         allow list: if false;
         allow create, update: if isValidId(userId) && isValidId(docId) &&
           docId == 'info' &&
           isVerifiedUser() &&
           request.auth.uid == userId &&
+          (!userDocExists() || isUserActive()) &&
           isValidUserPrivateInfo(incoming()) &&
           incoming().uid == request.auth.uid &&
           incoming().updatedAt == request.time;
@@ -368,14 +469,14 @@ service cloud.firestore {
       }
     }
 
-    // Support tickets
+    // Support tickets (active verified owner or support/admin staff)
     match /supportTickets/{ticketId} {
       allow get: if isValidId(ticketId) && (
-        (isVerifiedUser() && existing().ownerUid == request.auth.uid) || isStaff()
+        (isActiveClient() && existing().ownerUid == request.auth.uid) || isSupportStaff()
       );
-      allow list: if (isVerifiedUser() && resource.data.ownerUid == request.auth.uid) || isStaff();
+      allow list: if (isActiveClient() && resource.data.ownerUid == request.auth.uid) || isSupportStaff();
       allow create: if isValidId(ticketId) &&
-        isVerifiedUser() &&
+        isActiveClient() &&
         isValidSupportTicket(incoming()) &&
         incoming().ownerUid == request.auth.uid &&
         incoming().status == 'Open' &&
@@ -387,25 +488,25 @@ service cloud.firestore {
         incoming().createdAt == existing().createdAt &&
         incoming().updatedAt == request.time &&
         (!(existing().status == 'Closed') || isAdmin()) && (
-          (isStaff() && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'priority', 'updatedAt'])) ||
-          (isVerifiedUser() && existing().ownerUid == request.auth.uid && incoming().status == existing().status && incoming().diff(existing()).affectedKeys().hasOnly(['description', 'updatedAt']))
+          (isSupportStaff() && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'priority', 'updatedAt'])) ||
+          (isActiveClient() && existing().ownerUid == request.auth.uid && incoming().status == existing().status && incoming().diff(existing()).affectedKeys().hasOnly(['description', 'updatedAt']))
         );
       allow delete: if isValidId(ticketId) && isAdmin();
     }
 
-    // Client delivery projects
+    // Client delivery projects (active verified owner or project/admin staff)
     match /projects/{projectId} {
       allow get: if isValidId(projectId) && (
-        (isVerifiedUser() && existing().ownerUid == request.auth.uid) || isStaff()
+        (isActiveClient() && existing().ownerUid == request.auth.uid) || isProjectStaff()
       );
-      allow list: if (isVerifiedUser() && resource.data.ownerUid == request.auth.uid) || isStaff();
+      allow list: if (isActiveClient() && resource.data.ownerUid == request.auth.uid) || isProjectStaff();
       allow create: if isValidId(projectId) &&
-        isStaff() &&
+        isProjectStaff() &&
         isValidClientProject(incoming()) &&
         incoming().createdAt == request.time &&
         incoming().updatedAt == request.time;
       allow update: if isValidId(projectId) &&
-        isStaff() &&
+        isProjectStaff() &&
         isValidClientProject(incoming()) &&
         incoming().ownerUid == existing().ownerUid &&
         incoming().createdAt == existing().createdAt &&
@@ -419,21 +520,23 @@ service cloud.firestore {
       allow get: if isValidId(logId) && isAdmin();
       allow list: if isAdmin();
       allow create: if isValidId(logId) &&
-        isStaff() &&
         isValidAuditLog(incoming()) &&
         incoming().actorUid == request.auth.uid &&
-        incoming().createdAt == request.time;
+        incoming().createdAt == request.time && (
+          isStaff() ||
+          (isActiveClient() && incoming().action in ['QUOTATION_ACCEPTED', 'QUOTATION_DECLINED'])
+        );
       allow update, delete: if false;
     }
 
     // Formal customer quotations and line items
     match /quotations/{quotationId} {
       allow get: if isValidId(quotationId) && (
-        (isVerifiedUser() && 'clientUid' in existing() && existing().clientUid == request.auth.uid) || isStaff()
+        (isActiveClient() && 'clientUid' in existing() && existing().clientUid == request.auth.uid) || isSalesStaff()
       );
-      allow list: if (isVerifiedUser() && 'clientUid' in resource.data && resource.data.clientUid == request.auth.uid) || isStaff();
+      allow list: if (isActiveClient() && 'clientUid' in resource.data && resource.data.clientUid == request.auth.uid) || isSalesStaff();
       allow create: if isValidId(quotationId) &&
-        isStaff() &&
+        isSalesStaff() &&
         isValidQuotation(incoming()) &&
         incoming().quotationNumber == quotationId &&
         incoming().createdByUid == request.auth.uid &&
@@ -448,7 +551,7 @@ service cloud.firestore {
         incoming().updatedAt == request.time && (
           isAdmin() ||
           (
-            isStaff() &&
+            isSalesStaff() &&
             !(existing().status in ['Accepted', 'Declined']) &&
             incoming().diff(existing()).affectedKeys().hasOnly([
               'enquiryId', 'clientUid', 'clientName', 'clientOrganisation', 'clientEmail',
@@ -459,7 +562,7 @@ service cloud.firestore {
             ])
           ) ||
           (
-            isVerifiedUser() &&
+            isActiveClient() &&
             'clientUid' in existing() &&
             existing().clientUid == request.auth.uid &&
             existing().status == 'Sent' &&
@@ -471,12 +574,12 @@ service cloud.firestore {
 
       match /items/{itemId} {
         allow get: if isValidId(quotationId) && isValidId(itemId) && (
-          isStaff() ||
-          (isVerifiedUser() && 'clientUid' in get(/databases/$(database)/documents/quotations/$(quotationId)).data && get(/databases/$(database)/documents/quotations/$(quotationId)).data.clientUid == request.auth.uid)
+          isSalesStaff() ||
+          (isActiveClient() && 'clientUid' in get(/databases/$(database)/documents/quotations/$(quotationId)).data && get(/databases/$(database)/documents/quotations/$(quotationId)).data.clientUid == request.auth.uid)
         );
-        allow list: if isStaff() || (isVerifiedUser() && 'clientUid' in resource.data && resource.data.clientUid == request.auth.uid);
+        allow list: if isSalesStaff() || (isActiveClient() && 'clientUid' in resource.data && resource.data.clientUid == request.auth.uid);
         allow create: if isValidId(quotationId) && isValidId(itemId) &&
-          isStaff() &&
+          isSalesStaff() &&
           isValidQuotationItem(incoming()) &&
           incoming().quotationId == quotationId &&
           incoming().createdAt == request.time &&
@@ -486,7 +589,7 @@ service cloud.firestore {
             ('clientUid' in getAfter(/databases/$(database)/documents/quotations/$(quotationId)).data && 'clientUid' in incoming() && incoming().clientUid == getAfter(/databases/$(database)/documents/quotations/$(quotationId)).data.clientUid)
           );
         allow update: if isValidId(quotationId) && isValidId(itemId) &&
-          isStaff() &&
+          isSalesStaff() &&
           isValidQuotationItem(incoming()) &&
           incoming().quotationId == existing().quotationId &&
           incoming().createdAt == existing().createdAt &&
@@ -497,9 +600,53 @@ service cloud.firestore {
           ]);
         allow delete: if isValidId(quotationId) && isValidId(itemId) && (
           isAdmin() ||
-          (isStaff() && !(get(/databases/$(database)/documents/quotations/$(quotationId)).data.status in ['Accepted', 'Declined']))
+          (isSalesStaff() && !(get(/databases/$(database)/documents/quotations/$(quotationId)).data.status in ['Accepted', 'Declined']))
         );
       }
+    }
+
+    // Dynamic CMS site settings (publicly readable ONLY when published)
+    match /cmsSettings/{settingId} {
+      allow get: if isValidId(settingId) && (existing().status == 'published' || isContentStaff());
+      allow list: if resource.data.status == 'published' || isContentStaff();
+      allow create: if isValidId(settingId) &&
+        isContentStaff() &&
+        isValidCmsSetting(incoming()) &&
+        incoming().id == settingId &&
+        incoming().updatedByUid == request.auth.uid &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(settingId) &&
+        isContentStaff() &&
+        isValidCmsSetting(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().section == existing().section &&
+        incoming().updatedByUid == request.auth.uid &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'payloadJson', 'updatedByUid', 'updatedAt']);
+      allow delete: if isValidId(settingId) && isAdmin();
+    }
+
+    // Dynamic CMS catalog & editorial entries (publicly readable ONLY when published)
+    match /cmsContent/{entryId} {
+      allow get: if isValidId(entryId) && (existing().status == 'published' || isContentStaff());
+      allow list: if resource.data.status == 'published' || isContentStaff();
+      allow create: if isValidId(entryId) &&
+        isContentStaff() &&
+        isValidCmsContentEntry(incoming()) &&
+        incoming().id == entryId &&
+        incoming().updatedByUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(entryId) &&
+        isContentStaff() &&
+        isValidCmsContentEntry(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().contentType == existing().contentType &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedByUid == request.auth.uid &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['slug', 'title', 'status', 'sortOrder', 'payloadJson', 'updatedByUid', 'updatedAt']);
+      allow delete: if isValidId(entryId) && isContentStaff();
     }
   }
 }

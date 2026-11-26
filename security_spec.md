@@ -1,26 +1,33 @@
-# DayTech Solutions — Firestore Security Rules Specification (Phase 0 TDD)
+# DayTech Solutions — Firestore Security Rules Specification
 
 ## 1. Data Invariants
-1. **No Public Role Escalation**: A user creating `/users/{userId}` can ONLY set `role: 'client'` and `active: true`, and `uid == request.auth.uid`. Staff/admin roles can only be assigned by a verified Administrator (`isAdmin()`).
-2. **PII Isolation**: User emails and telephone numbers are stored in `/users/{userId}/private/info` and are strictly readable only by `request.auth.uid == userId` or `isAdmin()`.
-3. **Public Lead Create-Only Boundary**: Unauthenticated or authenticated visitors may `create` `/enquiries/{enquiryId}`, `/demoBookings/{demoId}`, and `/contactMessages/{contactId}` ONLY with valid schema types, bounded string lengths, `consentAccepted == true` (for enquiries), initial status (`'New'` / `'Pending'`), and `request.time` server timestamps. Public `get`, `list`, `update`, and `delete` are forbidden.
-4. **Client Record Ownership**: Support tickets and client projects require `isSignedIn()`, verified email, `ownerUid == request.auth.uid` on list/get, and block modification of `ownerUid` or `createdAt` on update.
-5. **Terminal State Locking**: Enquiries in `'Archived'` or `'Converted'` state and Support Tickets in `'Closed'` state cannot be altered by non-admin users.
-6. **Immutable Audit Logs**: `/auditLogs/{logId}` allows `create` by verified staff/admins with `actorUid == request.auth.uid` and `createdAt == request.time`, and strictly forbids `update` and `delete`.
-7. **Formal Customer Quotations & Line Items**: `/quotations/{quotationId}` and `/quotations/{quotationId}/items/{itemId}` can only be created by verified staff (`isStaff()`) with matching `quotationNumber == quotationId`, `createdByUid == request.auth.uid`, valid non-negative totals, and `request.time` timestamps. Clients can only read their own `clientUid`-linked quotations and items, and can only transition a `'Sent'` quotation to `'Accepted'` or `'Declined'` via `affectedKeys().hasOnly(['status', 'updatedAt'])`. Accepted or Declined quotations are locked from non-admin edits.
+1. **Zero Hardcoded Privileged Emails**: Administrative authority is never granted via literal email checks. Initial super administrator provisioning uses a one-time atomic `/system/bootstrap` lock document combined with `/users/{uid}` role promotion (`role: 'super_admin'`). Existing verified `super_admin` and `admin` user documents preserve access seamlessly.
+2. **No Public Role Escalation & Active Account Enforcement**: A user creating `/users/{userId}` can only self-register as `role: 'client'` and `active: true` (unless atomically claiming an unclaimed `/system/bootstrap`). Deactivated users (`active: false`) are synchronously blocked from all authenticated client and staff operations across `/users`, `/enquiries`, `/demoBookings`, `/supportTickets`, `/projects`, `/quotations`, and `/auditLogs`.
+3. **Least-Privilege Role Separation**:
+   - `super_admin`: Full platform control, role assignment including `super_admin`, system bootstrap sealing.
+   - `admin`: User account activation and non-super-admin role assignments, audit log reads, full operational overrides.
+   - `sales_officer`: Enquiries, demo bookings, contact messages, and quotations.
+   - `project_manager`: Client delivery projects.
+   - `support_officer`: Support tickets and contact desk messages.
+   - `content_manager`: CMS settings and CMS entries (`draft` and `published`).
+   - `client`: Strict ownership isolation (`ownerUid`, `submitterUid`, or `clientUid == request.auth.uid`) and self-service quotation acceptance/decline only while `status == 'Sent'`.
+4. **PII Isolation**: User emails and telephone numbers reside under `/users/{userId}/private/info` and are readable only by `request.auth.uid == userId` or verified active `admin`/`super_admin`.
+5. **Public Lead Create-Only Boundary**: Unauthenticated visitors may `create` `/enquiries/{enquiryId}`, `/demoBookings/{demoId}`, and `/contactMessages/{contactId}` only with validated schema fields, `consentAccepted == true` (for enquiries), initial workflow status, and `request.time` server timestamps. Public `get`, `list`, `update`, and `delete` are forbidden.
+6. **Immutable Audit Logs**: `/auditLogs/{logId}` rejects all updates and deletes. Reads require verified active `admin`/`super_admin`.
+7. **CMS Draft Isolation**: Public visitors may only `get` or `list` `/cmsSettings/{settingId}` and `/cmsContent/{entryId}` documents where `status == 'published'`. Draft documents are restricted exclusively to `content_manager`, `admin`, and `super_admin`.
 
-## 2. Adversarial Payloads Blocked ("Dirty Dozen")
-1. Self-promotion payload on `/users/{uid}` with `role: 'super_admin'` -> **DENIED**.
-2. Shadow field injection on `/enquiries/{id}` adding `isVerified: true` -> **DENIED** via `keys().hasOnly(...)`.
-3. Public `list` query on `/enquiries` by anonymous or client user -> **DENIED**.
-4. Forged backdated `createdAt` timestamp on `/demoBookings/{id}` -> **DENIED** (`createdAt == request.time`).
-5. Oversized 1.5KB document ID poisoning on `/enquiries/{id}` -> **DENIED** via `isValidId(id)`.
-6. Unverified email account spoofing bootstrapped admin email (`email_verified == false`) -> **DENIED**.
-7. Cross-tenant ticket read on `/supportTickets/{id}` where `ownerUid != request.auth.uid` -> **DENIED**.
-8. Client mutating `ownerUid` on `/supportTickets/{id}` update -> **DENIED**.
-9. Client modifying `status` of `/supportTickets/{id}` directly to `'Resolved'` or modifying `'Closed'` ticket -> **DENIED**.
-10. Blank/oversized string value poisoning on `/contactMessages/{id}` (`message.size() > 3000`) -> **DENIED**.
-11. Unconsented enquiry submission (`consentAccepted: false`) -> **DENIED**.
-12. Deleting or tampering with `/auditLogs/{id}` -> **DENIED**.
-13. Client creating a quotation on `/quotations/{id}` or altering `totalAmount` / `items` on an issued quotation -> **DENIED**.
-
+## 2. Adversarial Payloads Blocked ("Dirty Dozen+")
+1. Self-promotion payload on `/users/{uid}` with `role: 'super_admin'` without atomic unclaimed `/system/bootstrap` -> **DENIED**.
+2. Second claim attempt on `/system/bootstrap` after initial bootstrap exists -> **DENIED**.
+3. Deactivated account (`active: false`) creating a support ticket, reading a quotation, or updating a profile -> **DENIED**.
+4. Standard `admin` attempting to demote or modify a `super_admin`, or promote a user to `super_admin` -> **DENIED**.
+5. Cross-role privilege abuse (`support_officer` creating a quotation or `content_manager` reading `/auditLogs`) -> **DENIED**.
+6. Shadow field injection on `/enquiries/{id}` adding `isVerified: true` -> **DENIED** via `keys().hasOnly(...)`.
+7. Public `list` query on `/enquiries` or `/quotations` by anonymous or non-owning user -> **DENIED**.
+8. Public `get` or `list` of `/cmsContent/{id}` or `/cmsSettings/{id}` with `status: 'draft'` -> **DENIED**.
+9. Forged backdated `createdAt` timestamp on `/demoBookings/{id}` -> **DENIED** (`createdAt == request.time`).
+10. Oversized 1.5KB document ID poisoning on `/enquiries/{id}` -> **DENIED** via `isValidId(id)`.
+11. Cross-tenant ticket read on `/supportTickets/{id}` where `ownerUid != request.auth.uid` -> **DENIED**.
+12. Client creating a quotation or tampering with `subtotal`, `discountPercent`, `taxAmount`, `totalAmount`, or `/items` -> **DENIED**.
+13. Deleting or tampering with `/auditLogs/{id}` -> **DENIED**.
+14. Unverified email account (`email_verified == false`) attempting authenticated writes or CMS modifications -> **DENIED**.

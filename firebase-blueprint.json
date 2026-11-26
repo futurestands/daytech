@@ -1,5 +1,16 @@
 {
   "entities": {
+    "SystemBootstrap": {
+      "title": "SystemBootstrap",
+      "description": "Immutable singleton lock recording the initial super administrator provisioning.",
+      "type": "object",
+      "properties": {
+        "initialized": { "type": "boolean" },
+        "initialSuperAdminUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "claimedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["initialized", "initialSuperAdminUid", "claimedAt"]
+    },
     "Enquiry": {
       "title": "Enquiry",
       "description": "Quotation request submitted by a prospective or existing client.",
@@ -164,7 +175,7 @@
     },
     "AuditLog": {
       "title": "AuditLog",
-      "description": "Immutable administrative audit trail entry.",
+      "description": "Immutable administrative and client-decision audit trail entry.",
       "type": "object",
       "properties": {
         "actorUid": { "type": "string", "minLength": 1, "maxLength": 128 },
@@ -257,20 +268,56 @@
         "lineTotal",
         "createdAt"
       ]
+    },
+    "CmsSetting": {
+      "title": "CmsSetting",
+      "description": "Site-wide dynamic CMS configuration section with draft/published visibility.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "section": { "type": "string", "enum": ["branding", "contact", "homepage", "seo", "announcement"] },
+        "status": { "type": "string", "enum": ["draft", "published"] },
+        "payloadJson": { "type": "string", "minLength": 2, "maxLength": 24000 },
+        "updatedByUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "section", "status", "payloadJson", "updatedByUid", "updatedAt"]
+    },
+    "CmsContentEntry": {
+      "title": "CmsContentEntry",
+      "description": "Dynamic CMS entry for services, products, pricing, industries, portfolio, blog posts, and FAQs.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "contentType": { "type": "string", "enum": ["service", "product", "industry", "portfolio", "post", "faq", "announcement"] },
+        "slug": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "status": { "type": "string", "enum": ["draft", "published"] },
+        "sortOrder": { "type": "number" },
+        "payloadJson": { "type": "string", "minLength": 2, "maxLength": 32000 },
+        "updatedByUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "contentType", "slug", "title", "status", "sortOrder", "payloadJson", "updatedByUid", "createdAt", "updatedAt"]
     }
   },
   "firestore": {
+    "/system/{docId}": {
+      "schema": { "$ref": "#/entities/SystemBootstrap" },
+      "description": "Immutable one-time super administrator bootstrap lock."
+    },
     "/enquiries/{enquiryId}": {
       "schema": { "$ref": "#/entities/Enquiry" },
-      "description": "Publicly creatable quotation enquiries; readable and manageable by authorised DayTech staff or owner."
+      "description": "Publicly creatable quotation enquiries; readable and manageable by authorised sales/admin staff or active owner."
     },
     "/demoBookings/{demoId}": {
       "schema": { "$ref": "#/entities/DemoBooking" },
-      "description": "Publicly creatable product demonstration bookings; readable and manageable by authorised DayTech staff or owner."
+      "description": "Publicly creatable product demonstration bookings; readable and manageable by authorised sales/admin staff or active owner."
     },
     "/contactMessages/{contactId}": {
       "schema": { "$ref": "#/entities/ContactMessage" },
-      "description": "Publicly creatable general contact messages; readable by authorised DayTech staff."
+      "description": "Publicly creatable general contact messages; readable by authorised support/sales/admin staff."
     },
     "/users/{userId}": {
       "schema": { "$ref": "#/entities/UserAccount" },
@@ -282,23 +329,31 @@
     },
     "/supportTickets/{ticketId}": {
       "schema": { "$ref": "#/entities/SupportTicket" },
-      "description": "Client support tickets isolated per ownerUid and DayTech support staff."
+      "description": "Client support tickets isolated per active ownerUid and DayTech support staff."
     },
     "/projects/{projectId}": {
       "schema": { "$ref": "#/entities/ClientProject" },
-      "description": "Client delivery projects isolated per ownerUid and DayTech project staff."
+      "description": "Client delivery projects isolated per active ownerUid and DayTech project staff."
     },
     "/auditLogs/{logId}": {
       "schema": { "$ref": "#/entities/AuditLog" },
-      "description": "Immutable administrative action logs."
+      "description": "Immutable administrative and client-decision audit logs."
     },
     "/quotations/{quotationId}": {
       "schema": { "$ref": "#/entities/Quotation" },
-      "description": "Formal customer quotations created by DayTech staff and viewable/acceptable by linked clients."
+      "description": "Formal customer quotations created by sales staff and viewable/acceptable by linked active clients."
     },
     "/quotations/{quotationId}/items/{itemId}": {
       "schema": { "$ref": "#/entities/QuotationItem" },
       "description": "Line items subcollection under each quotation document."
+    },
+    "/cmsSettings/{settingId}": {
+      "schema": { "$ref": "#/entities/CmsSetting" },
+      "description": "Site-wide dynamic CMS configuration sections (branding, contact, homepage, seo, announcements)."
+    },
+    "/cmsContent/{entryId}": {
+      "schema": { "$ref": "#/entities/CmsContentEntry" },
+      "description": "Dynamic CMS entries (services, products, pricing, industries, portfolio, posts, faqs)."
     }
   }
 }

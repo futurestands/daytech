@@ -14,7 +14,7 @@ interface AppContextValue {
 }
 
 const initialFlags = getClientFeatureFlags();
-const firebaseConfigured = isFirebaseReady();
+const firebaseConfigured = isFirebaseReady() && initialFlags.firebase;
 
 const DEFAULT_CONFIG: PublicConfig = {
   defaultCurrency: 'UGX',
@@ -36,9 +36,9 @@ const DEFAULT_CONFIG: PublicConfig = {
         note: 'Persisted to Cloud Firestore (daytech-bba8f).',
       }
     : {
-        persistent: true,
-        provider: 'local-file-store',
-        note: 'Checking backend storage status...',
+        persistent: false,
+        provider: 'unavailable',
+        note: 'Checking backend persistence status...',
       },
 };
 
@@ -72,13 +72,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let active = true;
     const clientFlags = getClientFeatureFlags();
-    const firebaseActive = isFirebaseReady();
+    const firebaseActive = isFirebaseReady() && clientFlags.firebase;
 
     fetch('/api/public-config')
       .then((res) => (res.ok ? res.json() : null))
       .then((data: PublicConfig | null) => {
         if (active && data) {
-          const localPersistent = Boolean(data.storage?.persistent);
+          const serverLocalPersistent = data.storage?.provider === 'local-file-store';
+          const effectiveStorage = firebaseActive
+            ? {
+                persistent: true,
+                provider: serverLocalPersistent ? ('firestore+local' as const) : ('firestore' as const),
+                note: serverLocalPersistent
+                  ? 'Persisted to Cloud Firestore (daytech-bba8f) with local server mirror.'
+                  : 'Persisted to Cloud Firestore (daytech-bba8f).',
+              }
+            : data.storage || {
+                persistent: false,
+                provider: 'unavailable' as const,
+                note: 'Persistent storage is unavailable (Firebase disabled and no durable server storage).',
+              };
+
           setPublicConfig({
             ...data,
             features: {
@@ -87,15 +101,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               googleCalendarEnabled: Boolean(clientFlags.googleCalendar && data.features.googleCalendarEnabled),
               whatsappEnabled: Boolean(clientFlags.whatsapp && data.features.whatsappEnabled && data.officialWhatsApp),
             },
-            storage: firebaseActive
-              ? {
-                  persistent: true,
-                  provider: localPersistent ? 'firestore+local' : 'firestore',
-                  note: localPersistent
-                    ? 'Persisted to Cloud Firestore (daytech-bba8f) with local server mirror.'
-                    : 'Persisted to Cloud Firestore (daytech-bba8f).',
-                }
-              : data.storage,
+            storage: effectiveStorage,
           });
           if (
             data.defaultCurrency === 'UGX' ||
@@ -110,6 +116,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (active) {
           setPublicConfig((prev) => ({
             ...prev,
+            features: {
+              ...prev.features,
+              firebaseEnabled: firebaseActive,
+            },
             storage: firebaseActive
               ? {
                   persistent: true,
@@ -119,7 +129,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               : {
                   persistent: false,
                   provider: 'unavailable',
-                  note: 'Backend persistence server is unreachable. Submissions cannot be stored.',
+                  note: 'Backend persistence server is unreachable and Firebase is disabled. Submissions cannot be stored.',
                 },
           }));
         }

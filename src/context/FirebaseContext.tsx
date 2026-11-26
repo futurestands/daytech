@@ -1,8 +1,20 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, signInWithPopup, signOut, User } from 'firebase/auth';
-import { auth, googleProvider } from '../lib/firebase/client';
+import {
+  auth,
+  FirebaseConnectionHealth,
+  formatFirebaseAuthError,
+  googleProvider,
+  testConnection,
+} from '../lib/firebase/client';
 import { isFirebaseReady } from '../lib/firebase/config';
-import { syncUserAccountOnSignIn } from '../lib/firebase/firestoreService';
+import {
+  BootstrapStatus,
+  claimInitialSuperAdmin,
+  getBootstrapStatus,
+  sealBootstrapForExistingAdmin,
+  syncUserAccountOnSignIn,
+} from '../lib/firebase/firestoreService';
 import { UserAccountRecord } from '../types/domain';
 
 interface FirebaseContextValue {
@@ -12,10 +24,18 @@ interface FirebaseContextValue {
   userAccount: UserAccountRecord | null;
   isStaff: boolean;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
+  isDeactivated: boolean;
   authError: string | null;
+  connectionHealth: FirebaseConnectionHealth | null;
+  bootstrapStatus: BootstrapStatus;
   signingIn: boolean;
   signInWithGoogle: () => Promise<void>;
   signOutUser: () => Promise<void>;
+  recheckConnection: () => Promise<void>;
+  provisionInitialSuperAdmin: () => Promise<void>;
+  sealBootstrapLock: () => Promise<void>;
+  getIdToken: () => Promise<string | null>;
 }
 
 const FirebaseContext = createContext<FirebaseContextValue | undefined>(undefined);
@@ -38,6 +58,20 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   const [userAccount, setUserAccount] = useState<UserAccountRecord | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [signingIn, setSigningIn] = useState(false);
+  const [connectionHealth, setConnectionHealth] = useState<FirebaseConnectionHealth | null>(null);
+  const [bootstrapStatus, setBootstrapStatus] = useState<BootstrapStatus>({
+    checked: false,
+    claimed: false,
+  });
+
+  const recheckConnection = useCallback(async () => {
+    const health = await testConnection();
+    setConnectionHealth(health);
+  }, []);
+
+  useEffect(() => {
+    void recheckConnection();
+  }, [recheckConnection]);
 
   useEffect(() => {
     if (!firebaseReady || !auth) {
@@ -50,6 +84,7 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
       setAuthError(null);
       if (!nextUser) {
         setUserAccount(null);
+        setBootstrapStatus({ checked: false, claimed: false });
         setAuthReady(true);
         return;
       }
@@ -57,8 +92,17 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
       try {
         const account = await syncUserAccountOnSignIn(nextUser);
         setUserAccount(account);
+        if (!account.active) {
+          setAuthError(
+            'Your account has been deactivated by an administrator. Contact DayTech Solutions support for assistance.'
+          );
+        }
+        if (nextUser.emailVerified) {
+          const bs = await getBootstrapStatus().catch(() => ({ checked: false, claimed: true }));
+          setBootstrapStatus(bs);
+        }
       } catch (err) {
-        setAuthError(err instanceof Error ? err.message : 'Unable to verify Firebase user profile.');
+        setAuthError(formatFirebaseAuthError(err));
         setUserAccount(null);
       } finally {
         setAuthReady(true);
@@ -70,7 +114,7 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithGoogle = async () => {
     if (!firebaseReady || !auth) {
-      setAuthError('Firebase Authentication is not configured.');
+      setAuthError('Firebase Authentication is disabled or not configured.');
       return;
     }
     setSigningIn(true);
@@ -78,14 +122,7 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
     try {
       await signInWithPopup(auth, googleProvider);
     } catch (err) {
-      const code = (err as { code?: string })?.code;
-      if (code === 'auth/popup-closed-by-user') {
-        setAuthError('Google sign-in popup was closed before completion.');
-      } else if (code === 'auth/popup-blocked') {
-        setAuthError('Sign-in popup was blocked by your browser. Please allow popups for this site.');
-      } else {
-        setAuthError(err instanceof Error ? err.message : 'Google sign-in failed.');
-      }
+      setAuthError(formatFirebaseAuthError(err));
     } finally {
       setSigningIn(false);
     }
@@ -95,17 +132,31 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
     if (!auth) return;
     await signOut(auth);
     setUserAccount(null);
+    setAuthError(null);
   };
 
-  const isBootstrappedAdmin = Boolean(
-    user?.emailVerified && user.email?.toLowerCase() === 'mugarurajohnson56@gmail.com'
-  );
-  const isStaff = Boolean(
-    isBootstrappedAdmin || (userAccount?.active && STAFF_ROLES.has(userAccount.role))
-  );
-  const isAdmin = Boolean(
-    isBootstrappedAdmin || (userAccount?.active && ADMIN_ROLES.has(userAccount.role))
-  );
+  const provisionInitialSuperAdmin = async () => {
+    if (!user) throw new Error('Sign in with Google first.');
+    const updated = await claimInitialSuperAdmin(user);
+    setUserAccount(updated);
+    setBootstrapStatus({ checked: true, claimed: true, initialSuperAdminUid: user.uid });
+  };
+
+  const sealBootstrapLock = async () => {
+    if (!user) return;
+    await sealBootstrapForExistingAdmin(user);
+    setBootstrapStatus({ checked: true, claimed: true, initialSuperAdminUid: user.uid });
+  };
+
+  const getIdToken = useCallback(async () => {
+    if (!user) return null;
+    return user.getIdToken();
+  }, [user]);
+
+  const isDeactivated = Boolean(userAccount && !userAccount.active);
+  const isStaff = Boolean(userAccount?.active && STAFF_ROLES.has(userAccount.role));
+  const isAdmin = Boolean(userAccount?.active && ADMIN_ROLES.has(userAccount.role));
+  const isSuperAdmin = Boolean(userAccount?.active && userAccount.role === 'super_admin');
 
   return (
     <FirebaseContext.Provider
@@ -116,10 +167,18 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
         userAccount,
         isStaff,
         isAdmin,
+        isSuperAdmin,
+        isDeactivated,
         authError,
+        connectionHealth,
+        bootstrapStatus,
         signingIn,
         signInWithGoogle,
         signOutUser,
+        recheckConnection,
+        provisionInitialSuperAdmin,
+        sealBootstrapLock,
+        getIdToken,
       }}
     >
       {children}

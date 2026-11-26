@@ -86,7 +86,33 @@ export function LegalPage({ mode }: LegalPageProps) {
               </div>
               <div>
                 <h2 className="font-display text-lg font-bold text-[#0B1120] dark:text-white">
-                  3. Governing Law
+                  3. Third-Party Mapping &amp; Location Services
+                </h2>
+                <p className="mt-2">
+                  Interactive map views and business location search features on this platform are powered by Google Maps Platform. By using those features, users are also bound by the{' '}
+                  <a
+                    href="https://maps.google.com/help/terms_maps/?utm_campaign=gmp_mcp_codeassist_v1_aistudio"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#2563EB] dark:text-[#06B6D4] underline"
+                  >
+                    Google Maps/Google Earth Additional Terms of Service
+                  </a>{' '}
+                  and the{' '}
+                  <a
+                    href="https://policies.google.com/privacy?utm_campaign=gmp_mcp_codeassist_v1_aistudio"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#2563EB] dark:text-[#06B6D4] underline"
+                  >
+                    Google Privacy Policy
+                  </a>
+                  .
+                </p>
+              </div>
+              <div>
+                <h2 className="font-display text-lg font-bold text-[#0B1120] dark:text-white">
+                  4. Governing Law
                 </h2>
                 <p className="mt-2">
                   These terms are structured for governance under the laws of the Republic of Uganda, subject to final legal review and signed client service agreements.
