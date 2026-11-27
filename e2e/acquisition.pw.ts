@@ -43,13 +43,27 @@ test('direct navigation opens the lazy administrative route', async ({ page }) =
   await expect(page.getByRole('heading', { name: 'Administrator Access Required' })).toBeVisible();
 });
 
-test('production preview serves the primary image with optional integrations disabled', async ({ page }) => {
+test('production preview renders the original architecture illustration', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('img', { name: 'DayTech enterprise technology operations and engineering architecture' })).toBeVisible();
+  await expect(page.getByText('Connected technology', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Open DayTech Live Voice Advisor' })).toHaveCount(0);
   const image = await page.request.get('/src/assets/images/hero_tech_architecture_1795598738822.jpg');
-  expect(image.ok()).toBe(true);
-  expect(image.headers()['content-type']).toContain('image/jpeg');
+  expect(image.headers()['content-type'] ?? '').not.toContain('image/');
+  const notices = await page.request.get('/third-party-notices.txt');
+  expect(notices.ok()).toBe(true);
+  expect(await notices.text()).toContain('DayTech runtime dependency notices');
+});
+
+test('customer portal navigation remains keyboard-operable at mobile width', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/portal');
+  const nav = page.getByRole('navigation', { name: 'Customer portal sections' });
+  const quotations = nav.getByRole('button', { name: 'Quotations & Proposals' });
+  await quotations.focus();
+  await page.keyboard.press('Enter');
+  await expect(quotations).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByRole('heading', { name: 'Formal Customer Quotations & Proposals' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
 test('planned products preserve public routes and open dedicated interest form', async ({ page }) => {

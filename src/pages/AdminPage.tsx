@@ -1,3 +1,5 @@
+import { AdminActivityChart } from '../components/AdminActivityChart';
+import { WorkspaceNotice, WorkspaceSectionButton } from '../components/WorkspaceUi';
 import { ProductPublishingPanel } from '../components/ProductPublishingPanel';
 import { GrowthLeadPanel } from '../components/GrowthLeadPanel';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -1190,22 +1192,9 @@ function AdminSession() {
               const Icon = tab.icon;
               const active = activeTab === tab.id;
               return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  aria-label={tab.label}
-                  aria-current={active ? 'page' : undefined}
-                  title={navigationCollapsed ? tab.label : undefined}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`w-full min-h-11 flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium motion-safe:transition-colors text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
-                    active
-                      ? 'bg-[#2563EB] text-white'
-                      : 'text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#020617]'
-                  }`}
-                >
+                <WorkspaceSectionButton key={tab.id} active={active} label={tab.label} onSelect={() => setActiveTab(tab.id)}>
                   <Icon className="w-4 h-4 shrink-0" aria-hidden="true" />
-                  <span className="admin-navigation-label">{tab.label}</span>
-                </button>
+                </WorkspaceSectionButton>
               );
             })}
             </nav>
@@ -1213,11 +1202,7 @@ function AdminSession() {
 
           {/* Main Admin Viewport */}
           <main className="min-w-0 space-y-6">
-            {actionNotice && (
-              <div role="status" className="p-3.5 rounded-lg border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/30 text-xs text-[#0B1120] dark:text-blue-200">
-                {actionNotice}
-              </div>
-            )}
+            {actionNotice && <WorkspaceNotice>{actionNotice}</WorkspaceNotice>}
 
             <div className="admin-section space-y-6" key={activeTab}>
             {activeTab === 'dashboard' && (
@@ -1246,6 +1231,12 @@ function AdminSession() {
                     </div>
                   ))}
                 </div>
+
+                {(canSell || serverUnlocked) && <AdminActivityChart counts={[
+                  { label: 'Enquiries', section: 'enquiries', value: activeEnquiries.length },
+                  { label: 'Quotations', section: 'quotations', value: activeQuotations.length },
+                  { label: 'Demo requests', section: 'demoBookings', value: activeDemos.length },
+                ].filter(item => serverUnlocked || collectionStatus[item.section] === 'ready')} />}
 
                 <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#020617] p-6">
                   <h2 className="font-display text-lg font-bold text-[#0B1120] dark:text-white">
