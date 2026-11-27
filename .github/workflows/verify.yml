@@ -2,7 +2,7 @@ name: DayTech verification
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, codex/daytech-increment-6]
 permissions:
   contents: read
 jobs:

@@ -191,4 +191,8 @@ Local verification passed TypeScript, the production build, 30 unit tests, 16 Fi
 
 GitHub Actions run 46005548446 verifies Increment 5. Increment 6 was kept local while deployment triggers and preview approval are unresolved. Its main client artefact hash matches the approved baseline.
 
+### Hosting safeguards follow-up
+
+The local successor passed TypeScript, production build, 34 unit tests, 16 Firestore emulator tests and 11 Playwright tests. The dependency audit found zero high or critical findings, and the secret-pattern scan passed. A synthetic Vercel preview build rejected incomplete configuration and built with the complete synthetic settings. The local deployment exclusion test verified the exact Increment 6 branch, nested CI and development names, and unchanged automatic deployment eligibility for `main`. No provider-side deployment or remote CI was triggered. See [the hosting decision report](DAYTECH_HOSTING_DECISION.md).
+
 See [the release acceptance report](DAYTECH_RELEASE_ACCEPTANCE.md) for the seven-run mobile comparisons, licence evidence, controlled preview status and release sequence.

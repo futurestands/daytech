@@ -11,7 +11,9 @@ import {
   normalizeCurrency,
   normalizeTimezone,
   parseBooleanFlag,
+  validPreviewRuntime,
 } from './lib/config';
+import { needsPreviewIsolation } from '../src/config/previewIsolation';
 import {
   ALL_STAFF_ROLES,
   AdminAuthDeps,
@@ -159,6 +161,10 @@ function sanitizeQuotationLookup(doc: Record<string, unknown>) {
 export function createApiApp(deps: ApiAppDeps = {}) {
   const app = express();
   const env = deps.env ?? process.env;
+  if (needsPreviewIsolation(env) && !validPreviewRuntime(env)) {
+    app.use((_req, res) => res.set('Cache-Control', 'no-store').status(503).json({ error: 'Preview configuration is unavailable.' }));
+    return app;
+  }
   const firestoreStore = createFirestoreStore(env);
 
   app.use((_req: Request, res: Response, next: NextFunction) => {
