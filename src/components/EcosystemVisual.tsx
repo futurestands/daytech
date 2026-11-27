@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, BarChart3, Cloud, Code2, Cpu, ShieldCheck } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
 
 interface EcosystemNode {
   id: string;
@@ -120,14 +119,7 @@ export function EcosystemVisual() {
 
       {/* Connected Node Detail Viewport */}
       <div className="mt-5 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-[#020617]/70 p-5">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeNode.id}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.18 }}
-          >
+          <div key={activeNode.id} className="ecosystem-panel">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <h3 className="font-display text-lg font-semibold text-[#0B1120] dark:text-white">
                 {activeNode.headline}
@@ -169,8 +161,7 @@ export function EcosystemVisual() {
                 <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             </div>
-          </motion.div>
-        </AnimatePresence>
+          </div>
       </div>
     </div>
   );

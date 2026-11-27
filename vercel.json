@@ -1,5 +1,14 @@
 {
   "version": 2,
+  "git": {
+    "deploymentEnabled": {
+      "codex/**": false,
+      "ci/**": false,
+      "dev": false,
+      "develop": false,
+      "dev/**": false
+    }
+  },
   "rewrites": [
     {
       "source": "/robots.txt",
@@ -10,7 +19,7 @@
       "destination": "/api/sitemap"
     },
     {
-      "source": "/((?!api/|robots\\.txt$|sitemap\\.xml$|assets/|src/assets/|favicon\\.ico$).*)",
+      "source": "/((?!api/|robots\\.txt$|sitemap\\.xml$|assets/|src/assets/|favicon\\.(?:ico|svg)$).*)",
       "destination": "/index.html"
     }
   ],

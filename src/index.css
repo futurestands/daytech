@@ -50,3 +50,13 @@
   }
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  .ecosystem-panel {
+    animation: ecosystem-panel-enter 180ms ease-out both;
+  }
+}
+
+@keyframes ecosystem-panel-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}

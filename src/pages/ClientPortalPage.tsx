@@ -1,5 +1,6 @@
+import { WorkspaceNotice, WorkspaceSectionButton } from '../components/WorkspaceUi';
 import React, { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import {
   AlertCircle,
   CheckCircle2,
@@ -22,7 +23,7 @@ import { SEOHead } from '../components/SEOHead';
 import { QuotationDocument } from '../components/QuotationDocument';
 import { formatCurrencyValue } from '../data/products';
 import { useAppContext } from '../context/AppContext';
-import { useFirebase } from '../context/FirebaseContext';
+import { FirebaseProvider, useFirebase } from '../context/FirebaseContext';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase/client';
 import {
   createSupportTicketInFirestore,
@@ -70,6 +71,15 @@ const ticketSchema = z.object({
 });
 
 export function ClientPortalPage() {
+  return <FirebaseProvider><AuthenticatedPortal /></FirebaseProvider>;
+}
+
+function AuthenticatedPortal() {
+  const { user } = useFirebase();
+  return <ClientPortalSession key={user?.uid ?? 'guest'} />;
+}
+
+function ClientPortalSession() {
   const [searchParams] = useSearchParams();
   const { publicConfig } = useAppContext();
   const {
@@ -86,7 +96,8 @@ export function ClientPortalPage() {
 
   const [activeTab, setActiveTab] = useState<PortalTab>('lookup');
   const [refInput, setRefInput] = useState(searchParams.get('ref') || '');
-  const shareToken = searchParams.get('token');
+  const opaqueToken = new URLSearchParams(useLocation().hash.slice(1)).get('quote');
+  const shareToken = opaqueToken || searchParams.get('token');
   const [loading, setLoading] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [lookupResponse, setLookupResponse] = useState<{
@@ -101,6 +112,7 @@ export function ClientPortalPage() {
     : null;
 
   const [myEnquiries, setMyEnquiries] = useState<EnquiryRecord[]>([]);
+  const [recordStatus, setRecordStatus] = useState<Partial<Record<'quotations' | 'projects' | 'supportTickets', 'ready' | 'error'>>>({});
   const [myQuotations, setMyQuotations] = useState<QuotationRecord[]>([]);
   const [myDemos, setMyDemos] = useState<DemoBookingRecord[]>([]);
   const [myProjects, setMyProjects] = useState<ClientProjectRecord[]>([]);
@@ -218,8 +230,9 @@ export function ClientPortalPage() {
         });
         rows.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
         setMyProjects(rows);
+        setRecordStatus(current => ({ ...current, projects: 'ready' }));
       },
-      (err) => handleFirestoreError(err, OperationType.LIST, 'projects')
+      () => setRecordStatus(current => ({ ...current, projects: 'error' }))
     );
 
     const unsubTickets = onSnapshot(
@@ -242,8 +255,9 @@ export function ClientPortalPage() {
         });
         rows.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
         setMyTickets(rows);
+        setRecordStatus(current => ({ ...current, supportTickets: 'ready' }));
       },
-      (err) => handleFirestoreError(err, OperationType.LIST, 'supportTickets')
+      () => setRecordStatus(current => ({ ...current, supportTickets: 'error' }))
     );
 
     const unsubQuotations = onSnapshot(
@@ -254,6 +268,7 @@ export function ClientPortalPage() {
           return {
             id: d.id,
             quotationNumber: String(r.quotationNumber || d.id),
+            revision: typeof r.revision === 'number' ? r.revision : undefined,
             enquiryId: r.enquiryId ? String(r.enquiryId) : undefined,
             clientUid: r.clientUid ? String(r.clientUid) : undefined,
             clientName: String(r.clientName || ''),
@@ -282,8 +297,9 @@ export function ClientPortalPage() {
         });
         rows.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
         setMyQuotations(rows);
+        setRecordStatus(current => ({ ...current, quotations: 'ready' }));
       },
-      (err) => handleFirestoreError(err, OperationType.LIST, 'quotations')
+      () => setRecordStatus(current => ({ ...current, quotations: 'error' }))
     );
 
     return () => {
@@ -304,8 +320,10 @@ export function ClientPortalPage() {
     void (async () => {
       try {
         const response = await fetch(
-          `/api/portal/lookup?${new URLSearchParams({ token: shareToken })}`,
-          { signal: controller.signal }
+          opaqueToken ? '/api/portal/quotation-share' : `/api/portal/lookup?${new URLSearchParams({ token: shareToken })}`,
+          opaqueToken
+            ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: opaqueToken }), signal: controller.signal }
+            : { signal: controller.signal }
         );
         const data = await response.json();
         if (controller.signal.aborted) return;
@@ -321,7 +339,7 @@ export function ClientPortalPage() {
       }
     })();
     return () => controller.abort();
-  }, [shareToken]);
+  }, [opaqueToken, shareToken]);
 
   const handleLookup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -404,7 +422,19 @@ export function ClientPortalPage() {
   const handleClientQuotationDecision = async (q: QuotationRecord, decision: 'Accepted' | 'Declined') => {
     setQuoteActionNotice(null);
     try {
-      await updateQuotationStatusInFirestore(q.id, decision, false);
+      if (q.revision) {
+        const response = await fetch(`/api/portal/quotations/${encodeURIComponent(q.id)}/decision`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await getIdToken()}` },
+          body: JSON.stringify({ revision: q.revision, status: decision }),
+        });
+        if (!response.ok) {
+          const result = await response.json();
+          throw new Error(result.error || 'Unable to record quotation decision.');
+        }
+      } else {
+        await updateQuotationStatusInFirestore(q.id, decision, false);
+      }
       setQuoteActionNotice(`Quotation ${q.quotationNumber} marked as ${decision}.`);
       setPreviewDoc((prev) =>
         prev && prev.quotation.id === q.id
@@ -484,6 +514,7 @@ export function ClientPortalPage() {
       <div className="print:hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Sidebar Navigation */}
         <aside className="lg:col-span-3 space-y-2">
+          <nav aria-label="Customer portal sections" className="grid grid-cols-2 gap-2 lg:grid-cols-1">
           {(
             [
               { id: 'lookup', label: 'Enquiries & Demo Tracker', icon: Search },
@@ -497,21 +528,12 @@ export function ClientPortalPage() {
             const Icon = item.icon;
             const active = activeTab === item.id;
             return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors text-left ${
-                  active
-                    ? 'bg-[#2563EB] text-white'
-                    : 'bg-white dark:bg-[#020617] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900'
-                }`}
-              >
-                <Icon className="w-4 h-4 shrink-0" />
-                <span>{item.label}</span>
-              </button>
+              <WorkspaceSectionButton key={item.id} active={active} label={item.label} onSelect={() => setActiveTab(item.id)}>
+                <Icon className="w-4 h-4 shrink-0" aria-hidden="true" />
+              </WorkspaceSectionButton>
             );
           })}
+          </nav>
 
           <div className="mt-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#020617] p-4 text-xs text-slate-600 dark:text-slate-400 space-y-2">
             <div className="flex items-center gap-2 font-semibold text-[#0B1120] dark:text-white">
@@ -735,19 +757,19 @@ export function ClientPortalPage() {
                 )}
               </div>
 
-              {quoteActionNotice && (
-                <div className="p-3.5 rounded-lg border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/30 text-xs text-[#0B1120] dark:text-blue-200">
-                  {quoteActionNotice}
-                </div>
-              )}
+              {quoteActionNotice && <WorkspaceNotice>{quoteActionNotice}</WorkspaceNotice>}
 
               {!user ? (
                 <p className="text-sm text-slate-600 dark:text-slate-300">
                   Sign in with your verified Google account to view formal quotations issued to your organisation, or look up a <span className="font-mono">QTE-...</span> reference in Enquiries &amp; Demo Tracker.
                 </p>
+              ) : user.emailVerified && recordStatus.quotations === 'error' ? (
+                <WorkspaceNotice error>Could not load quotations. Refresh the page to try again.</WorkspaceNotice>
+              ) : user.emailVerified && !recordStatus.quotations ? (
+                <p role="status" className="text-sm text-slate-600 dark:text-slate-300">Loading quotations…</p>
               ) : myQuotations.length === 0 ? (
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  No formal quotations are currently linked to your account UID ({user.uid}).
+                  Quotations issued to your account will appear here.
                 </p>
               ) : (
                 <div className="space-y-4">
@@ -833,9 +855,13 @@ export function ClientPortalPage() {
                 <p className="text-sm text-slate-600 dark:text-slate-300">
                   Sign in with your verified Google account to view projects assigned to your organisation.
                 </p>
+              ) : user.emailVerified && recordStatus.projects === 'error' ? (
+                <WorkspaceNotice error>Could not load projects. Refresh the page to try again.</WorkspaceNotice>
+              ) : user.emailVerified && !recordStatus.projects ? (
+                <p role="status" className="text-sm text-slate-600 dark:text-slate-300">Loading projects…</p>
               ) : myProjects.length === 0 ? (
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  No active delivery projects are currently assigned to your account ({user.uid}).
+                  Projects assigned to your account will appear here.
                 </p>
               ) : (
                 <div className="space-y-4">
@@ -1019,7 +1045,11 @@ export function ClientPortalPage() {
                   <h3 className="font-display text-lg font-bold text-[#0B1120] dark:text-white">
                     Your Support Tickets ({myTickets.length})
                   </h3>
-                  {myTickets.length === 0 ? (
+                  {user?.emailVerified && recordStatus.supportTickets === 'error' ? (
+                    <WorkspaceNotice error>Could not load your support tickets. Refresh the page to try again.</WorkspaceNotice>
+                  ) : user?.emailVerified && !recordStatus.supportTickets ? (
+                    <p role="status" className="text-sm text-slate-600 dark:text-slate-300">Loading support tickets…</p>
+                  ) : myTickets.length === 0 ? (
                     <p className="text-sm text-slate-500 dark:text-slate-400">
                       No support tickets created under your account yet.
                     </p>

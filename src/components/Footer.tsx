@@ -20,7 +20,7 @@ export function Footer() {
                 <BrandMark />
               </Link>
               <p className="text-sm font-medium text-[#0B1120] dark:text-slate-200">
-                Technology. Innovation. Impact.
+                Technology that moves business forward.
               </p>
               <p className="text-sm leading-relaxed">
                 Uganda-based technology company engineering intelligent software, IT infrastructure, cloud platforms, and digital transformation solutions across Africa and internationally.
@@ -127,6 +127,11 @@ export function Footer() {
                     Terms of Service
                   </Link>
                 </li>
+                <li>
+                  <a href="/third-party-notices.txt" className="hover:text-[#2563EB] dark:hover:text-[#06B6D4]">
+                    Third-party notices
+                  </a>
+                </li>
               </ul>
             </div>
           </div>
@@ -137,6 +142,8 @@ export function Footer() {
               <label className="inline-flex items-center gap-2">
                 <span>Display Currency:</span>
                 <select
+                  id="footer-currency"
+                  name="currency"
                   value={currency}
                   onChange={(e) => setCurrency(e.target.value as 'UGX' | 'USD' | 'KES')}
                   aria-label="Select display currency"

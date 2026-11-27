@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 import { z } from 'zod';
@@ -45,6 +45,7 @@ export function DemoPage() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const submissionInFlight = useRef(false);
   const [submitting, setSubmitting] = useState(false);
   const [confirmation, setConfirmation] = useState<{
     referenceNumber: string;
@@ -55,6 +56,7 @@ export function DemoPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submissionInFlight.current) return;
     setErrors({});
     setSubmitError(null);
 
@@ -68,6 +70,7 @@ export function DemoPage() {
       return;
     }
 
+    submissionInFlight.current = true;
     setSubmitting(true);
     try {
       if (publicConfig.features.firebaseEnabled) {
@@ -75,17 +78,6 @@ export function DemoPage() {
           ...parsed.data,
           productName: selectedProduct.name,
         });
-        if (publicConfig.storage?.provider === 'firestore+local') {
-          fetch('/api/demos', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              ...parsed.data,
-              productName: selectedProduct.name,
-              referenceNumber: result.referenceNumber,
-            }),
-          }).catch(() => undefined);
-        }
         setConfirmation({
           referenceNumber: result.referenceNumber,
           timezone: result.timezone,
@@ -122,6 +114,7 @@ export function DemoPage() {
       }
       setSubmitError(msg);
     } finally {
+      submissionInFlight.current = false;
       setSubmitting(false);
     }
   };

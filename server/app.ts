@@ -1,4 +1,6 @@
+import { registerPublishingRoutes } from './publishingRoutes';
 import crypto from 'crypto';
+import { registerGrowthRoutes } from './growthRoutes';
 import express, { NextFunction, Request, Response } from 'express';
 import { z } from 'zod';
 import {
@@ -9,20 +11,25 @@ import {
   normalizeCurrency,
   normalizeTimezone,
   parseBooleanFlag,
+  validPreviewRuntime,
 } from './lib/config';
+import { needsPreviewIsolation } from '../src/config/previewIsolation';
 import {
   ALL_STAFF_ROLES,
   AdminAuthDeps,
+  AdminAuthResult,
   evaluateAdminRequest,
 } from './lib/adminAuth';
 import {
   fetchFirestoreDocAsCaller,
+  flattenFirestoreDocument,
   verifyFirebaseIdToken,
   VerifiedFirebaseToken,
 } from './lib/firebaseAuth';
+import { createFirestoreStore } from './lib/firestoreStore';
+import { convertQuotationToProject, linkGuestEnquiry, persistQuotation, QUOTATION_STAFF, QuotationWriteError, transitionQuotation, quotationShareDigest } from './lib/quotationPersistence';
 import {
   getQuotationSigningSecret,
-  mintQuotationShareToken,
   verifyQuotationShareToken,
 } from './lib/quotationTokens';
 import {
@@ -37,7 +44,6 @@ import {
   demoSchema,
   enquirySchema,
   quotationPayloadSchema,
-  quotationShareLinkSchema,
   verifyClientTotalsMatch,
 } from './lib/validation';
 
@@ -73,6 +79,13 @@ const PUBLIC_SITEMAP_ROUTES = [
   '/products/meet',
   '/products/finance',
   '/products/waterops',
+  '/partners',
+  '/product-interest',
+  '/partners/apply',
+  '/tools',
+  '/academy',
+  '/products/schools',
+  '/products/rentals',
   '/industries',
   '/portfolio',
   '/insights',
@@ -148,6 +161,11 @@ function sanitizeQuotationLookup(doc: Record<string, unknown>) {
 export function createApiApp(deps: ApiAppDeps = {}) {
   const app = express();
   const env = deps.env ?? process.env;
+  if (needsPreviewIsolation(env) && !validPreviewRuntime(env)) {
+    app.use((_req, res) => res.set('Cache-Control', 'no-store').status(503).json({ error: 'Preview configuration is unavailable.' }));
+    return app;
+  }
+  const firestoreStore = createFirestoreStore(env);
 
   app.use((_req: Request, res: Response, next: NextFunction) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -191,6 +209,9 @@ export function createApiApp(deps: ApiAppDeps = {}) {
       return next();
     };
   }
+
+  registerGrowthRoutes(app, env, adminGuard);
+  registerPublishingRoutes(app, env, adminGuard);
 
   app.get('/api/health', (_req, res) => {
     const storage = getStorageStatus(env);
@@ -520,42 +541,123 @@ export function createApiApp(deps: ApiAppDeps = {}) {
     });
   });
 
-  // Staff endpoint to mint signed, expiring customer quotation links
-  app.post(
-    '/api/admin/quotations/share-link',
-    adminGuard(['super_admin', 'admin', 'sales_officer']),
-    (req, res) => {
-      const parsed = quotationShareLinkSchema.safeParse(req.body);
-      if (!parsed.success) {
-        return res.status(400).json({
-          error: 'Invalid quotation share link request.',
-          details: parsed.error.flatten().fieldErrors,
-        });
+  const quotationLinkInput = z.object({
+    quotationNumber: z.string().regex(/^QTE-\d{4}-[A-Z0-9]{6}$/),
+    revision: z.number().int().positive(),
+    expiresInDays: z.number().int().min(1).max(30).default(7),
+  });
+
+  app.post('/api/admin/quotations/share-link', adminGuard(QUOTATION_STAFF), async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const context = (req as Request & { adminContext?: AdminAuthResult }).adminContext;
+    const parsed = quotationLinkInput.safeParse(req.body);
+    if (!context?.uid) return res.status(403).json({ error: 'A verified staff account is required.' });
+    if (!parsed.success) return res.status(400).json({ error: 'A quotation number and revision are required.' });
+    const { quotationNumber, revision, expiresInDays } = parsed.data;
+    try {
+      const doc = await firestoreStore.get('quotations/' + quotationNumber);
+      const quote = doc && flattenFirestoreDocument(doc);
+      if (quote?.revision !== revision || quote.status !== 'Sent') {
+        return res.status(409).json({ error: 'Only the current sent quotation revision can be shared.' });
       }
-
-      const { secret, ephemeral } = getQuotationSigningSecret(env);
-      if (!secret) {
-        return res.status(503).json({
-          error:
-            'QUOTATION_LINK_SECRET must contain at least 32 characters and be configured in server environment variables to sign customer quotation links in production.',
-        });
-      }
-
-      const minted = mintQuotationShareToken(parsed.data, { secret });
-      const host = req.get('host');
-      const origin = (env.APP_URL || (host ? `${req.protocol}://${host}` : '')).replace(/\/$/, '');
-      const relativeUrl = `/portal?token=${encodeURIComponent(minted.token)}`;
-
-      return res.status(201).json({
-        token: minted.token,
-        tokenId: minted.tokenId,
-        expiresAt: minted.expiresAt,
-        relativeUrl,
-        shareUrl: origin ? `${origin}${relativeUrl}` : relativeUrl,
-        ephemeralSecretUsed: ephemeral,
-      });
+      const token = crypto.randomBytes(32).toString('base64url');
+      const linkId = quotationShareDigest(token);
+      const expiresAt = new Date(Date.now() + expiresInDays * 86_400_000).toISOString();
+      await firestoreStore.commit([
+        firestoreStore.put('quotationShares/' + linkId, {
+          quotationNumber, revision, expiresAt, issuedBy: context.uid,
+        }, { exists: false }, ['createdAt']),
+      ]);
+      return res.status(201).json({ linkId, relativeUrl: '/portal#quote=' + token, expiresAt });
+    } catch {
+      return res.status(503).json({ error: 'Quotation sharing is unavailable.' });
     }
-  );
+  });
+
+  app.delete('/api/admin/quotations/share-link/:id', adminGuard(QUOTATION_STAFF), async (req, res) => {
+    const context = (req as Request & { adminContext?: AdminAuthResult }).adminContext;
+    const id = String(req.params.id);
+    if (!context?.uid) return res.status(403).json({ error: 'A verified staff account is required.' });
+    if (!/^[a-f0-9]{64}$/.test(id)) return res.status(404).json({ error: 'Link not found.' });
+    try {
+      const doc = await firestoreStore.get('quotationShares/' + id);
+      if (!doc) return res.status(404).json({ error: 'Link not found.' });
+      const write = firestoreStore.put('quotationShares/' + id, { revoked: true, revokedBy: context.uid },
+        { updateTime: doc.updateTime }, ['revokedAt']);
+      if ('update' in write) write.update.fields = { ...doc.fields, ...write.update.fields };
+      await firestoreStore.commit([write]);
+      return res.status(204).end();
+    } catch {
+      return res.status(503).json({ error: 'Unable to revoke the quotation link.' });
+    }
+  });
+
+  app.post('/api/portal/quotation-share', rateLimit(20, 60_000), async (req, res) => {
+    res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
+    const token = req.body?.token;
+    const invalid = () => res.status(404).json({ error: 'Quotation link is unavailable or expired.' });
+    if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(token)) return invalid();
+    try {
+      const link = await firestoreStore.get('quotationShares/' + quotationShareDigest(token));
+      const share = link && flattenFirestoreDocument(link);
+      if (!share || share.revoked || !(Date.parse(String(share.expiresAt)) > Date.now())) return invalid();
+      const doc = await firestoreStore.get('quotations/' + share.quotationNumber);
+      const quote = doc && flattenFirestoreDocument(doc);
+      if (!quote || quote.revision !== share.revision || !['Sent', 'Accepted', 'Declined'].includes(String(quote.status))) return invalid();
+      const storedItems = await firestoreStore.list('quotations/' + share.quotationNumber + '/items');
+      const items = storedItems.map(item => {
+        const row = flattenFirestoreDocument(item);
+        return {
+          id: row.id, quotationId: row.quotationId, sortOrder: row.sortOrder, itemType: row.itemType,
+          description: row.description, details: row.details, unit: row.unit,
+          quantity: row.quantity, unitPrice: row.unitPrice, lineTotal: row.lineTotal,
+        };
+      }).sort((first, second) => Number(first.sortOrder) - Number(second.sortOrder));
+      // Fail closed if the quotation or link changes while it is being read.
+      const [current, currentLink] = await Promise.all([
+        firestoreStore.get('quotations/' + share.quotationNumber),
+        firestoreStore.get('quotationShares/' + quotationShareDigest(token)),
+      ]);
+      if (current?.updateTime !== doc?.updateTime || currentLink?.updateTime !== link?.updateTime) return invalid();
+      await firestoreStore.commit([firestoreStore.put('auditLogs/' + crypto.randomUUID(), {
+        actorUid: 'quotation-share', actorEmail: '', action: 'QUOTATION_SHARE_VIEWED',
+        target: String(share.quotationNumber), revision: Number(share.revision),
+      }, { exists: false }, ['createdAt'])]);
+      return res.json(sanitizeQuotationLookup({ ...quote, items, notes: undefined }));
+    } catch {
+      return res.status(503).json({ error: 'Quotation sharing is unavailable.' });
+    }
+  });
+
+  app.post('/api/admin/enquiries/:id/link-customer', adminGuard(QUOTATION_STAFF), async (req, res) => {
+    const context = (req as Request & { adminContext?: AdminAuthResult }).adminContext;
+    const input = z.object({ clientUid: z.string().regex(/^[\w-]{1,128}$/), verifiedOriginalContact: z.literal(true) }).safeParse(req.body);
+    const id = String(req.params.id);
+    if (!context?.uid) return res.sendStatus(403);
+    if (!input.success || !/^DTQ-\d{4}-[A-Z0-9]{6}$/.test(id)) return res.sendStatus(400);
+    try {
+      await linkGuestEnquiry(firestoreStore, id, input.data.clientUid, context.uid);
+      return res.sendStatus(204);
+    } catch (error) {
+      if (error instanceof QuotationWriteError) return res.status(error.status).json({ error: error.message });
+      return res.status(503).json({ error: 'Could not link the enquiry. Reload and try again.' });
+    }
+  });
+
+  app.post('/api/admin/quotations/:id/project', adminGuard(['super_admin', 'admin', 'project_manager']), async (req, res) => {
+    const context = (req as Request & { adminContext?: AdminAuthResult }).adminContext;
+    const input = z.object({ revision: z.number().int().positive() }).safeParse(req.body);
+    const id = String(req.params.id);
+    if (!context?.uid) return res.sendStatus(403);
+    if (!input.success || !/^QTE-\d{4}-[A-Z0-9]{6}$/.test(id)) return res.sendStatus(400);
+    try {
+      const projectId = await convertQuotationToProject(firestoreStore, id, input.data.revision, context.uid);
+      return res.json({ projectId });
+    } catch (error) {
+      if (error instanceof QuotationWriteError) return res.status(error.status).json({ error: error.message });
+      return res.status(503).json({ error: 'Could not convert the quotation. Reload and try again.' });
+    }
+  });
 
   // Admin Overview & Operations API
   app.get('/api/admin/overview', adminGuard(['super_admin', 'admin']), (req, res) => {
@@ -564,21 +666,9 @@ export function createApiApp(deps: ApiAppDeps = {}) {
       .adminContext;
 
     if (!canUseLocalJsonStore(env)) {
-      return res.json({
-        adminAuthMode: adminCtx?.mode || 'firebase-rbac',
+      return res.status(503).json({
+        error: 'Server overview storage is unavailable. Use the Firestore staff dashboard.',
         storage,
-        stats: {
-          totalEnquiries: 0,
-          pendingQuotations: 0,
-          demoRequests: 0,
-          pendingDemos: 0,
-          contactMessages: 0,
-        },
-        enquiries: [],
-        demos: [],
-        contacts: [],
-        quotations: [],
-        auditLogs: [],
       });
     }
 
@@ -690,8 +780,25 @@ export function createApiApp(deps: ApiAppDeps = {}) {
 
   app.post(
     '/api/admin/quotations',
-    adminGuard(['super_admin', 'admin', 'sales_officer']),
-    (req, res) => {
+    adminGuard(QUOTATION_STAFF),
+    async (req, res) => {
+      const context = (req as Request & { adminContext?: AdminAuthResult }).adminContext;
+      if (context?.uid) {
+        const parsed = quotationPayloadSchema.safeParse(req.body);
+        const key = z.uuid().safeParse(req.get('Idempotency-Key'));
+        const revision = z.number().int().min(0).optional().safeParse(req.body?.expectedRevision);
+        if (!parsed.success || !key.success || !revision.success) {
+          return res.status(400).json({ error: 'Invalid quotation details, revision or request key.' });
+        }
+        try {
+          const result = await persistQuotation(firestoreStore, parsed.data, context.uid, revision.data, key.data);
+          return res.status(parsed.data.quotationNumber ? 200 : 201).json(result);
+        } catch (error) {
+          if (error instanceof QuotationWriteError) return res.status(error.status).json({ error: error.message });
+          return res.status(503).json({ error: 'Quotation storage is unavailable. Try again with the same request.' });
+        }
+      }
+
       if (!canUseLocalJsonStore(env)) {
         return res.status(503).json({
           error: 'Local store disabled in serverless mode. Save quotations directly to Cloud Firestore.',
@@ -791,10 +898,47 @@ export function createApiApp(deps: ApiAppDeps = {}) {
     }
   );
 
+  app.post('/api/portal/quotations/:id/decision', rateLimit(30, 60_000), async (req, res) => {
+    const token = /^Bearer (.+)$/i.exec(req.get('authorization') ?? '')?.[1];
+    const input = z.object({ revision: z.number().int().positive(), status: z.enum(['Accepted', 'Declined']) }).safeParse(req.body);
+    const id = req.params.id;
+    if (!token) return res.status(401).json({ error: 'Sign in to record a decision.' });
+    if (!input.success || !/^QTE-\d{4}-[A-Z0-9]{6}$/.test(id)) {
+      return res.status(400).json({ error: 'Invalid quotation or revision.' });
+    }
+    try {
+      const user = await (deps.verifyClientToken ?? verifyFirebaseIdToken)(token).catch(() => null);
+      if (!user?.emailVerified) return res.status(403).json({ error: 'A verified account is required.' });
+      const account = await (deps.fetchFirestoreDoc ?? fetchFirestoreDocAsCaller)(token, 'users', user.uid);
+      if (account?.active !== true) return res.status(403).json({ error: 'An active account is required.' });
+      await transitionQuotation(firestoreStore, id, input.data.revision, input.data.status, user.uid, false);
+      return res.json({ status: input.data.status });
+    } catch (error) {
+      if (error instanceof QuotationWriteError) return res.status(error.status).json({ error: error.message });
+      return res.status(503).json({ error: 'Quotation storage is unavailable.' });
+    }
+  });
+
   app.patch(
     '/api/admin/quotations/:id',
     adminGuard(['super_admin', 'admin', 'sales_officer']),
-    (req, res) => {
+    async (req, res) => {
+      const context = (req as Request & { adminContext?: AdminAuthResult }).adminContext;
+      if (context?.uid) {
+        const input = z.object({ revision: z.number().int().min(0), status: z.enum(['Sent', 'Expired']) }).safeParse(req.body);
+        const id = String(req.params.id);
+        if (!input.success || !/^QTE-\d{4}-[A-Z0-9]{6}$/.test(id)) {
+          return res.status(400).json({ error: 'Invalid quotation or status.' });
+        }
+        try {
+          await transitionQuotation(firestoreStore, id, input.data.revision, input.data.status, context.uid, true);
+          return res.json({ status: input.data.status });
+        } catch (error) {
+          if (error instanceof QuotationWriteError) return res.status(error.status).json({ error: error.message });
+          return res.status(503).json({ error: 'Quotation storage is unavailable.' });
+        }
+      }
+
       if (!canUseLocalJsonStore(env)) {
         return res.status(503).json({
           error: 'Local store disabled in serverless mode. Update quotations directly in Cloud Firestore.',

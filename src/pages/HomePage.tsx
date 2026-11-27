@@ -14,9 +14,10 @@ import {
 import { SEOHead } from '../components/SEOHead';
 import { EcosystemVisual } from '../components/EcosystemVisual';
 import { ProductDashboardPreview } from '../components/ProductDashboardPreview';
-import { ImageWithFallback } from '../components/ImageWithFallback';
+import { ArchitectureIllustration } from '../components/ArchitectureIllustration';
 import { SERVICES } from '../data/services';
 import { PRODUCTS } from '../data/products';
+import { safeProductStatus, usePublicProductStatuses } from '../lib/publicProductStatus';
 import { INDUSTRIES } from '../data/industries';
 import { REFERENCE_ARCHITECTURES } from '../data/insights';
 
@@ -102,72 +103,69 @@ const WHY_DAYTECH = [
 ];
 
 export function HomePage() {
-  const [featuredSlug, setFeaturedSlug] = useState<string>('sacco');
+  const [featuredSlug, setFeaturedSlug] = useState<string>('inventory');
   const [activeProcessIdx, setActiveProcessIdx] = useState<number>(0);
 
   const featuredProduct = PRODUCTS.find((p) => p.slug === featuredSlug) || PRODUCTS[0];
+  const productStatuses = usePublicProductStatuses('featured');
   const activeProcess = PROCESS_STEPS[activeProcessIdx];
 
   return (
     <div>
       <SEOHead
-        title="DayTech Solutions – Technology. Innovation. Impact."
+        title="DayTech Solutions | Technology that moves business forward"
         description="DayTech Solutions delivers intelligent software, reliable IT infrastructure, cloud computing, and digital transformation across Uganda and Africa."
       />
 
-      {/* A. HERO SECTION */}
-      <section className="relative overflow-hidden border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-[#020617]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 lg:py-20">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-stretch">
-            <div className="lg:col-span-6 flex flex-col justify-center">
-              <p className="text-sm font-medium text-[#2563EB] dark:text-[#06B6D4]">
-                Uganda · East Africa · International Digital Engineering
-              </p>
-              <h1 className="mt-3 font-display text-4xl sm:text-5xl lg:text-[52px] font-bold tracking-tight text-[#0B1120] dark:text-white leading-[1.08]">
-                Building Technology. Transforming Businesses. Shaping the Future.
-              </h1>
-              <p className="mt-5 text-base sm:text-lg text-slate-600 dark:text-slate-300 leading-relaxed max-w-xl">
-                DayTech Solutions delivers intelligent software, reliable IT infrastructure and innovative digital solutions that empower businesses and institutions to operate smarter, grow faster and achieve lasting impact.
-              </p>
-
-              <div className="mt-8 flex flex-wrap items-center gap-3.5">
-                <Link
-                  to="/products"
-                  className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-[#2563EB] hover:bg-blue-700 text-white text-sm font-semibold transition-colors whitespace-nowrap shrink-0"
-                >
-                  <span>Explore Our Solutions</span>
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-                <Link
-                  to="/quote"
-                  className="inline-flex items-center gap-2 px-5 py-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0B1120] hover:bg-slate-50 dark:hover:bg-slate-900 text-[#0B1120] dark:text-white text-sm font-semibold transition-colors whitespace-nowrap shrink-0"
-                >
-                  <span>Get a Free Consultation</span>
-                </Link>
-              </div>
+      <section className="bg-[#0B1120] text-white">
+        <div className="mx-auto grid max-w-7xl gap-9 px-4 py-12 sm:px-8 lg:grid-cols-[1fr_1.08fr] lg:items-center lg:gap-12 lg:py-16">
+          <div>
+            <p className="text-sm font-semibold text-[#71E6EF]">Business software and IT services in Uganda</p>
+            <h1 className="mt-4 max-w-xl font-display text-4xl font-bold leading-[1.08] tracking-tight sm:text-5xl lg:text-6xl">
+              Technology that moves business forward.
+            </h1>
+            <p className="mt-5 max-w-md text-base leading-relaxed text-slate-200 sm:text-lg">
+              Get the software, infrastructure and implementation support to run your business with fewer disconnected tools.
+            </p>
+            <div className="mt-7 flex flex-wrap gap-3">
+              <Link to="/demo" className="inline-flex items-center gap-2 rounded-lg bg-[#2563EB] px-5 py-3 text-sm font-semibold hover:bg-blue-700">
+                Request a demo <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link to="/quote" className="rounded-lg border border-slate-400 px-5 py-3 text-sm font-semibold hover:bg-slate-800">
+                Get a quote
+              </Link>
             </div>
-
-            <div className="lg:col-span-6 relative rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 min-h-[280px]">
-              <ImageWithFallback
-                src="/src/assets/images/hero_tech_architecture_1795598738822.jpg"
-                alt="DayTech enterprise technology operations and engineering architecture"
-                className="w-full h-full lg:h-full object-cover"
-                fallbackLabel="DayTech Engineering Command Architecture"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#020617]/80 via-[#020617]/20 to-transparent" />
-              <div className="absolute bottom-5 left-5 right-5 text-white">
-                <p className="text-xs font-mono text-[#06B6D4]">Technology. Innovation. Impact.</p>
-                <p className="mt-1 text-sm font-medium text-slate-100">
-                  Software Engineering · IT Infrastructure · Cloud · AI &amp; Cybersecurity
-                </p>
-              </div>
-            </div>
+            <Link to="/products" className="mt-6 inline-block text-sm font-semibold text-[#71E6EF] underline underline-offset-4">
+              Explore DayTech products
+            </Link>
           </div>
-
-          {/* Interactive Connected Ecosystem Visual */}
-          <div className="mt-12">
-            <EcosystemVisual />
+          <figure className="overflow-hidden rounded-2xl border border-slate-600 bg-[#111F33]">
+            <ArchitectureIllustration variant="platform" />
+            <figcaption className="px-4 py-2 text-xs text-slate-200">Illustrative systems diagram</figcaption>
+          </figure>
+        </div>
+      </section>
+      <section className="border-b border-slate-200 bg-white py-12 dark:border-slate-800 dark:bg-[#020617]" aria-labelledby="ecosystem-heading">
+        <div className="mx-auto max-w-7xl px-4 sm:px-8">
+          <h2 id="ecosystem-heading" className="font-display text-3xl font-bold">Explore DayTech</h2>
+          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              ['DayTech Products', 'Software for retail, hospitality, schools and other organisations.', '/products'],
+              ['DayTech Enterprise', 'Custom development and systems integration.', '/services'],
+              ['DayTech Cloud', 'Infrastructure, hosting and managed services.', '/services'],
+              ['DayTech AI', 'Practical automation for everyday workflows.', '/services'],
+              ['DayTech Academy', 'Technical resources and planned product training.', '/academy'],
+              ['DayTech Partners', 'Opportunities for implementation and support partners.', '/partners'],
+              ['Free business tools', 'Create an invoice, estimate profit or generate a QR code.', '/tools'],
+              ['DayTech Labs', 'Public technical articles and reference concepts.', '/insights'],
+            ].map(([name, description, url]) => (
+              <Link key={name} to={url} className="rounded-xl border border-slate-200 p-4 hover:border-[#2563EB] dark:border-slate-700">
+                <h3 className="font-semibold">{name}</h3>
+                <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{description}</p>
+              </Link>
+            ))}
           </div>
+          <div className="mt-10"><EcosystemVisual /></div>
         </div>
       </section>
 
@@ -176,12 +174,7 @@ export function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-stretch">
             <div className="lg:col-span-5 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 min-h-[260px]">
-              <ImageWithFallback
-                src="/src/assets/images/about_kampala_workspace_1795598739080.jpg"
-                alt="DayTech Solutions engineering team collaborating in East Africa"
-                className="w-full h-full lg:h-full object-cover"
-                fallbackLabel="DayTech Engineering Studio"
-              />
+              <ArchitectureIllustration variant="engineering" />
             </div>
 
             <div className="lg:col-span-7 flex flex-col justify-center">
@@ -315,7 +308,7 @@ export function HomePage() {
 
           {/* Product Switcher Tabs */}
           <div className="flex flex-wrap items-center gap-2 mb-6" role="tablist" aria-label="Featured DayTech Products">
-            {PRODUCTS.map((prod) => {
+            {['inventory', 'hotelos', 'schools'].map(slug => PRODUCTS.find(prod => prod.slug === slug)!).map((prod) => {
               const active = prod.slug === featuredProduct.slug;
               return (
                 <button
@@ -341,7 +334,7 @@ export function HomePage() {
             <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#020617] p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
               <div className="max-w-2xl">
                 <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                  {featuredProduct.category} · Lifecycle Status: {featuredProduct.status}
+                  {featuredProduct.category} · Lifecycle Status: {productStatuses[featuredProduct.slug] ?? safeProductStatus(featuredProduct.status)}
                 </p>
                 <h3 className="mt-1 font-display text-2xl font-bold text-[#0B1120] dark:text-white">
                   {featuredProduct.name}
@@ -358,10 +351,10 @@ export function HomePage() {
                   Explore {featuredProduct.name}
                 </Link>
                 <Link
-                  to={`/demo?product=${featuredProduct.slug}`}
+                  to={`/product-interest?product=${featuredProduct.slug}`}
                   className="px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 text-sm font-semibold text-[#0B1120] dark:text-white hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors whitespace-nowrap shrink-0"
                 >
-                  Request Demo
+                  Register early interest
                 </Link>
               </div>
             </div>

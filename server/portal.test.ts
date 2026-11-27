@@ -6,7 +6,11 @@ import { mintQuotationShareToken } from './lib/quotationTokens';
 const secret = Buffer.alloc(32, 42).toString('hex');
 const ref = 'QTE-2026-ABC123';
 const app = createApiApp({
-  env: { NODE_ENV: 'production', QUOTATION_LINK_SECRET: secret },
+  env: { NODE_ENV: 'production', VERCEL: '1', VERCEL_ENV: 'production', QUOTATION_LINK_SECRET: secret },
+  adminAuthDeps: {
+    verifyToken: async () => ({ uid: 'staff', emailVerified: true }),
+    fetchUser: async () => ({ uid: 'staff', role: 'admin', active: true }),
+  },
   verifyClientToken: async (uid) => ({
     uid, emailVerified: true, issuer: 'test', audience: 'test', exp: 100, iat: 1,
   }),
@@ -60,4 +64,57 @@ describe('customer quotation lookup', () => {
     const expired = mintQuotationShareToken(quotation, { secret, nowSeconds: 1 });
     expect((await lookup({ token: expired.token })).status).toBe(401);
   });
+});
+
+describe('functional integration', () => {
+  it.each(['/api/contact', '/api/demos', '/api/enquiries'])(
+    'rejects unavailable persistence on %s without a success response',
+    async (path) => {
+      const response = await fetch(origin + path, { method: 'POST' });
+      expect(response.status).toBe(503);
+      expect(await response.json()).not.toHaveProperty('referenceNumber');
+    }
+  );
+
+  it('distinguishes unavailable server overview from actual zero counts', async () => {
+    const response = await fetch(origin + '/api/admin/overview', {
+      headers: { Authorization: 'Bearer staff' },
+    });
+    expect(response.status).toBe(503);
+    expect(await response.json()).not.toHaveProperty('stats');
+  });
+
+  it('recomputes UGX totals with discount before VAT and rejects mismatches', async () => {
+    const payload = {
+      clientName: 'Test Customer', clientOrganisation: 'Example Company',
+      clientEmail: 'customer@example.invalid', title: 'Test quotation', currency: 'UGX',
+      discountPercent: 10, taxPercent: 18, validUntil: '2027-01-01',
+      paymentTerms: 'On delivery',
+      items: [{ itemType: 'Service', description: 'Sample work', unit: 'hour', quantity: 2, unitPrice: 100000 }],
+    };
+    async function validate(totalAmount: number) {
+      return fetch(origin + '/api/quotations/validate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...payload, totalAmount }),
+      });
+    }
+    const valid = await validate(212400);
+    expect(valid.status).toBe(200);
+    expect(await valid.json()).toMatchObject({
+      computed: { subtotal: 200000, discountAmount: 20000, taxAmount: 32400, totalAmount: 212400 },
+    });
+    expect((await validate(200000)).status).toBe(400);
+  });
+});
+
+it('exposes Vercel rewrite targets for sitemap and robots', async () => {
+  const [robots, sitemap] = await Promise.all([
+    fetch(origin + '/api/robots'),
+    fetch(origin + '/api/sitemap'),
+  ]);
+  expect(robots.status).toBe(200);
+  expect(await robots.text()).toContain('Disallow: /admin');
+  expect(sitemap.status).toBe(200);
+  expect(sitemap.headers.get('content-type')).toContain('xml');
+  expect(await sitemap.text()).toContain('<urlset');
 });

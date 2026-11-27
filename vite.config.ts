@@ -1,36 +1,25 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
-import fs from 'fs';
 import path from 'path';
-import {defineConfig} from 'vite';
+import { defineConfig, loadEnv } from 'vite';
+import firebaseAppletConfig from './firebase-applet-config.json' with { type: 'json' };
+import { needsPreviewIsolation, previewIntegrationsDisabled, validPreviewWebConfig } from './src/config/previewIsolation.ts';
 
-export default defineConfig(() => {
+export default defineConfig(({ mode }) => {
+  const env = { ...loadEnv(mode, process.cwd(), 'VITE_'), ...process.env };
+  const preview = needsPreviewIsolation(env);
+  if (preview && (!validPreviewWebConfig(env, firebaseAppletConfig.apiKey) || !previewIntegrationsDisabled(env))) {
+    throw new Error('Preview build requires isolated Firebase Web configuration and disabled optional integrations.');
+  }
   return {
+    define: preview ? { 'import.meta.env.VITE_DAYTECH_PREVIEW': JSON.stringify('true') } : undefined,
     plugins: [
       react(),
       tailwindcss(),
-      // Copies src/assets into dist/ so root-relative URLs like
-      // "/src/assets/images/..." (e.g. generate_image output) still resolve
-      // in production builds. Do not remove.
-      {
-        name: 'copy-unbundled-src-assets',
-        apply: 'build',
-        closeBundle(error?: Error): void {
-          if (error) {
-            return;
-          }
-          const distDir = path.resolve(__dirname, 'dist');
-          const srcAssets = path.resolve(__dirname, 'src/assets');
-          const distAssets = path.resolve(distDir, 'src/assets');
-          if (fs.existsSync(distDir) && fs.existsSync(srcAssets)) {
-            fs.cpSync(srcAssets, distAssets, {recursive: true, force: true});
-          }
-        },
-      },
     ],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': path.resolve(import.meta.dirname, '.'),
       },
     },
     server: {

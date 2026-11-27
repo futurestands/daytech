@@ -59,7 +59,7 @@ export const quotationLineSchema = z.object({
 
 export const quotationPayloadSchema = z.object({
   quotationNumber: z.string().regex(/^QTE-[0-9]{4}-[A-Z0-9]{6}$/).optional(),
-  enquiryId: z.string().trim().max(64).optional().default(''),
+  enquiryId: z.union([z.literal(''), z.string().regex(/^DTQ-\d{4}-[A-Z0-9]{6}$/)]).optional().default(''),
   clientUid: z.string().trim().max(128).optional().default(''),
   clientName: z.string().trim().min(2).max(120),
   clientOrganisation: z.string().trim().min(2).max(150),

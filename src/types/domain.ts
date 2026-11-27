@@ -1,9 +1,8 @@
-export type ProductStatus =
-  | 'Available'
-  | 'Beta'
-  | 'Under Development'
-  | 'Coming Soon'
-  | 'Archived';
+export const PRODUCT_STATUSES = [
+  'Planned', 'In Development', 'Private Alpha', 'Public Beta', 'Available', 'Maintenance', 'Retired',
+] as const;
+
+export type ProductStatus = typeof PRODUCT_STATUSES[number];
 
 export type CurrencyCode = 'UGX' | 'USD' | 'KES';
 
@@ -251,6 +250,7 @@ export interface QuotationItemRecord {
 export interface QuotationRecord {
   id: string;
   quotationNumber: string;
+  revision?: number;
   enquiryId?: string;
   clientUid?: string;
   clientName: string;
@@ -297,4 +297,3 @@ export interface PublicConfig {
     note: string;
   };
 }
-
