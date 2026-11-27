@@ -93,3 +93,56 @@ A successful new registration normally uses two Firestore document reads and two
 Provision an approved preview with a dedicated Firebase database, server-only `FIRESTORE_SERVICE_ACCOUNT_JSON` and stable `GROWTH_HASH_SECRET` before real registrations. Preserve collection privacy. Verify the platform forwarding header in preview and keep rate counters and audit records on an approved retention schedule. [Vercel request headers](https://vercel.com/docs/headers/request-headers)
 
 Product release publishing, approved pricing and origin management, historical funnel analytics, enrolment and advanced partner workflows remain pending. Partner invitations are an admin stage without automated email delivery. The responsive photograph derives from the existing illustration. Rights review and sourcing of additional sector photography remain pending. The recommended next increment is protected draft-to-release publishing with approved origin and pricing checks, followed by preview verification and scalable lead reporting.
+
+# Strategic Increment 3 — verification and rollout
+
+Feature commit `cc6d461` on `codex/daytech-platform-foundation`.
+
+| Check | Result |
+| --- | --- |
+| TypeScript 7.0.2 | Passed |
+| Vite 8.3.8 production build | Passed |
+| Vitest 5.1.2 | 26 passed |
+| Firestore emulator 1.22.0 | 15 passed |
+| Playwright production preview with locally cached Chromium | 8 passed |
+| Targeted secret-pattern scan | Passed |
+| CycloneDX 1.6 / dependency licence scan | 695 locked components, 540 installed-manifest licences, 155 unverified transitive or unavailable entries |
+| Browser screenshots and overflow checks | Homepage in desktop light and mobile dark, product detail, Academy, Partners and Free Tools |
+
+The emulator uses isolated records. Tests cover private draft denial, role-restricted publication, unapproved pricing and origin rejection, competing publications, retirement, WaterOps restriction, assigned-lead isolation, admin-only exports, opt-outs and current-cohort counts. Vitest covers dangerous CSV prefixes and embedded delimiters. Playwright covers all eleven product URLs and the release-rendering fixture. There was no live preview or external Google sign-in test. Overflow checks at the captured sizes do not constitute a full accessibility audit.
+
+The initial main JS file decreased from 1,102.48 to 524.08 kB minified (52.5%) and from 337.38 to 163.33 kB gzip (51.6%). Firebase now loads with authenticated routes and acquisition modules that use it. The deferred Firestore chunk is 581.97 kB minified (174.65 kB gzip). Both still trigger Vite's chunk warning. Homepage imagery remains the existing illustrative WebP set.
+
+## Rollout risks and operational requirements
+
+- Required server-only variables are `FIRESTORE_SERVICE_ACCOUNT_JSON` and `GROWTH_HASH_SECRET`. Use the existing Firebase public config variables for the isolated project and named database, and keep production untouched until separately authorised.
+- Install and verify `firestore.indexes.json` in an approved isolated project. The emulator does not establish that production composite indexes or Firebase IAM are configured. Confirm actual token, role, trusted proxy and service identity behaviour in preview.
+- A normal registration uses about two reads and two writes, a duplicate about two reads and one quota write, and an already cached rejection no database reads in that warm instance. A list or export reads at most 51 rows plus applicable index costs, and an export adds one audit write. The analytics page runs seven indexed counts on request. A first release uses separate draft/proposal, approval, projection and audit writes. As a planning scenario, 100 distinct registrations use about 200 reads and 200 writes before retries, review, analytics and storage. Region, index scans, database eligibility and actual traffic determine charges. Expiration timestamps are set, but no billable TTL or paid service was enabled. [Firestore billing](https://firebase.google.com/docs/firestore/pricing)
+- Cohort metrics describe current stages and demo request creation. Transition audit records exist, but the dashboard does not calculate a historical unique-event funnel. Product cards on the homepage/catalogue still show catalogue information. Product detail consumes the approved projection.
+- Metadata checks leave platform-specific or unavailable licences unverified. MPL and CC BY reviews and photographic rights evidence remain open. The provenance register and draft proprietary policy are not conclusions about legal title.
+- Growth retention, deletion and suppression need owner approval and an authorised maintenance process. Distributed sources can still create quota reads. Limited-scope IAM and further edge controls remain rollout checks.
+
+## Integration sequence
+
+Draft PR #2 stays independent. Shared areas are Express registration, admin content, Firestore rules, the REST adapter, package manifests, and the emulator suites. Finish and review quotation work on its own branch. After owner approval, integrate against the merged baseline, discard the patch-equivalent replay, reconcile adapter methods and custom rules, then run both suites and test data migration in isolation. No merge, PR closure, production Firebase change or manual deployment occurred.
+
+## Changed files
+- `.github/workflows/verify.yml`
+- `e2e/acquisition.pw.ts`
+- `firestore.indexes.json`
+- `firestore.rules`
+- `scripts/check-secrets.ts`
+- `scripts/generate-sbom.ts`
+- `server/app.ts`
+- `server/growthRoutes.test.ts`
+- `server/growthRoutes.ts`
+- `server/lib/firestoreStore.ts`
+- `server/publishingRoutes.ts`
+- `src/App.tsx`
+- `src/components/GrowthLeadPanel.tsx`
+- `src/components/ProductPublishingPanel.tsx`
+- `src/lib/firebase/firestoreService.ts`
+- `src/pages/AdminPage.tsx`
+- `src/pages/ClientPortalPage.tsx`
+- `src/pages/ProductDetailPage.tsx`
+- `tests/firestore.emulator.ts`

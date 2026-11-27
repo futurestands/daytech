@@ -713,3 +713,20 @@ Platform-specific entries without an installed manifest are marked unverified. R
 - edge-runtime@2.5.9 · MPL-2.0
 - lightningcss-win32-x64-msvc@1.33.0 · MPL-2.0
 - lightningcss@1.33.0 · MPL-2.0
+
+## Increment 3 licensing review process
+
+Run `bun scripts/generate-sbom.ts` after a frozen install. It emits CycloneDX 1.6 JSON with direct runtime, direct development and transitive relationships and the evidence status of each licence. CI requires direct dependencies to have installed-manifest licence metadata. Platform-specific and unavailable transitive entries require review on their distribution platform and remain marked unverified. Collect and preserve the actual licence texts, notices and release provenance for distributed components. The targeted secret scan supplements manual review. [CycloneDX specification](https://cyclonedx.org/specification/overview/)
+
+Review the MPL-listed Edge Runtime and Lightning CSS packages to establish what is distributed and preserve applicable notices. Where MPL-covered executables are distributed, make the corresponding covered source available under MPL and provide recipients a way to obtain it. Review `caniuse-lite` attribution and modification notices under CC BY 4.0. No legal clearance is implied. [Mozilla MPL FAQ](https://www.mozilla.org/en-US/MPL/2.0/FAQ/) · [CC BY 4.0 legal code](https://creativecommons.org/licenses/by/4.0/legalcode.en)
+
+## Photographic asset provenance register
+
+| Repository asset | Provenance and release review |
+| --- | --- |
+| `hero_tech_architecture_1795598738822.jpg` and `hero-workspace-*.webp` | Existing repository illustration and its responsive derivatives. Identify creator, original source or generation record, permitted commercial uses, releases and required attribution before public rollout. The homepage labels the visual as illustrative. |
+| `about_kampala_workspace_1795598739080.jpg`, `infra_network_rack_1795598739618.jpg`, `software_design_desk_1795598740296.jpg` and other catalogue imagery | Existing repository illustrations. Confirm exact source and rights per file, plus subject or venue permissions where applicable. Do not imply an illustration depicts DayTech staff, customers or facilities. |
+
+## Draft proprietary software policy
+
+Record contributors and confirmed assignments for original DayTech code. Retain upstream licenses, notices, attribution and distribution obligations. Keep future proprietary products and confidential work in owner-approved private repositories. Repository commits show contribution history and do not constitute proof of title. Review founder and contributor employment agreements, contractor assignments and use of employer equipment or confidential material. WaterOps remains blocked from commercial release until claims and employment obligations have documented clearance. Owner approval and appropriate legal review are required before adopting a distribution licence.

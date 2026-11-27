@@ -52,3 +52,12 @@
 - [x] Invoice, profit and QR browser tools, Academy tracks and v1 integration design.
 - [ ] Build protected product drafts, evidence-based public publishing and approved pricing and origins.
 - [ ] Verify provisioned preview, real login, independent asset rights, and long-term reporting, audit retention and pagination.
+
+## Strategic Increment 3 — commercial readiness
+
+- [x] Draft, review, explicit super administrator approval, atomic publication, revision and retirement.
+- [x] Private evidence and pricing proposals, approved launch origin and pricing records, and public product-detail projections.
+- [x] Assigned-sales access, admin export audit, pagination, transition guards, accepted-attempt quota and current-cohort commercial analytics.
+- [x] Public-route Firebase deferral, asset provenance register, CycloneDX and CI secret and licence checks.
+- [ ] Owner-approved isolated preview with IAM, indexes and rate-limit source verification.
+- [ ] Monitor abuse and cohort reporting, resolve provenance and legal reviews, and approve a retention and suppression schedule.

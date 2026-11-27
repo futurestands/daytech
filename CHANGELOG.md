@@ -14,3 +14,9 @@
 - Added dedicated product-interest and partner intake, private Firestore persistence, review stages and an integrated lead panel.
 - Added client-only invoice, profit and QR tools and structured Academy learning tracks.
 - Added integration contracts, an installed-manifest licence inventory and responsive hero derivatives.
+
+## Strategic Increment 3
+
+- Private product drafts, separate price proposals and approvals, evidence and origin checks, and atomic public publication.
+- Assigned lead visibility, durable pre-lookup quotas, paginated filtering, audited CSV export and current-cohort analytics.
+- Firebase deferral on public routes, CycloneDX export, CI scanning, and provenance and rollout documentation.

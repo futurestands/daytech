@@ -39,3 +39,9 @@ Unknown major versions fail closed. Changes to optional fields can remain backwa
 ## Proposed pricing structure
 
 Starter, Professional and Enterprise are packaging proposals. A plan should carry currency, billing cadence (monthly, annual, school term or custom), recurring price, implementation charge, service limits, support scope and approval state. Separate the proposal from a published price with effective dates and approval evidence. Keep existing indicative UGX, USD and KES amounts as recorded in PRICING_RECONCILIATION.md until an authorised commercial review approves replacements. No payment route or checkout is enabled.
+
+## Protected publishing implemented in Increment 3
+
+Content managers and administrators can create or revise private drafts and submit them for review. Super administrators approve the reviewed version and publish it. Saving edits returns the record to Draft and drops approval ownership. Approval creates separate immutable-by-client evidence, approved-destination and approved-pricing records. Availability requires explicit evidence, a release version, verified capabilities and an approved HTTPS origin. WaterOps cannot publish a pricing proposal or advance to alpha, beta or availability through this workflow. The publish operation atomically changes the reviewed record, its public projection and the audit record with Firestore preconditions. Retirement uses the same review path and removes launch access. Retired slugs still resolve.
+
+Price proposals stay private. Approved Starter, Professional and Enterprise prices carry currency, cadence, implementation charge, support and optional services, and effective date. The product-detail view keeps existing indicative pricing if no approved price is effective. The catalogue and homepage still show catalogue defaults for product cards. Founder planning targets and proposal amounts stay outside the public repository and are not published offers.
