@@ -25,3 +25,17 @@ Maintain a dependency and licence inventory, attribution notices, an SBOM for ea
 ## Implemented increment
 
 Public lifecycle labels, Schools and Rentals routes, product-specific interest via the existing contact desk, partner interest and Academy information are in this branch. Dedicated consent-aware registration, lead assignment and analytics, admin publishing and pricing, customer entitlements, free tools and a full homepage redesign remain future implementation. Academy delivery remains Milestone 4.
+
+## Integration contract v1 (design)
+
+| Contract | Fields | Verification |
+| --- | --- | --- |
+| Organisation identity | `version`, `organisationId`, `subject`, `productId`, `membershipRole`, `issuer`, `audience`, `issuedAt`, `expiresAt` | Audience and issuer must match the receiving product. Resolve membership and tenant server-side before issuing a short-lived grant. |
+| Subscription and entitlements | `version`, `organisationId`, `productId`, `subscriptionState`, `entitlementRevision`, `features`, `effectiveAt`, `validUntil` | Products independently reject stale, expired, revoked or wrong-tenant grants. Validate an authenticated server event and deduplicate by event ID. |
+| Application handoff | `version`, `productId`, `organisationId`, `approvedOrigin`, `returnState`, `expiresAt` | Bind a single-use handoff code to the destination and organisation. Open URLs only from the per-product approved HTTPS origin registry. Never include bearer tokens in URLs. |
+
+Unknown major versions fail closed. Changes to optional fields can remain backward compatible within v1. Product teams retain independent deployment and release evidence. Subscription, billing and licence enforcement are design-only.
+
+## Proposed pricing structure
+
+Starter, Professional and Enterprise are packaging proposals. A plan should carry currency, billing cadence (monthly, annual, school term or custom), recurring price, implementation charge, service limits, support scope and approval state. Separate the proposal from a published price with effective dates and approval evidence. Keep existing indicative UGX, USD and KES amounts as recorded in PRICING_RECONCILIATION.md until an authorised commercial review approves replacements. No payment route or checkout is enabled.

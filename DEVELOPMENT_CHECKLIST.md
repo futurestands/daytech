@@ -44,3 +44,11 @@
 - [x] Role-based navigation and Firestore subscription permissions, with loading and error states for dashboard sales metrics.
 - [x] Local emulator acquisition and quotation decision tests, production-preview smoke tests and baseline CI workflow.
 - [ ] Verify fully integrated customer and staff workflows in an approved preview.
+
+## Strategic Increment 2 — commercial landing and acquisition
+
+- [x] Photography-led homepage, POS default preview, HotelOS and Schools, ecosystem navigation and dedicated applications.
+- [x] Private persistent growth intake, distributed write quota, duplicate protection, sales review and current-stage analytics.
+- [x] Invoice, profit and QR browser tools, Academy tracks and v1 integration design.
+- [ ] Build protected product drafts, evidence-based public publishing and approved pricing and origins.
+- [ ] Verify provisioned preview, real login, independent asset rights, and long-term reporting, audit retention and pagination.

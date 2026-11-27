@@ -71,3 +71,25 @@ The main JavaScript file decreased from 1,410.23 kB to 1,098.70 kB minified, a 2
 Branch `codex/daytech-platform-foundation` starts at the approved `0932cbd` merge and replays reviewed PR #2 increment `988a31d` for compatibility. Draft PR #2 and its in-progress local quotation files remain separate.
 
 TypeScript and Vite build passed. Vitest passed 18 API tests, Firestore emulator passed 13 tests, and Playwright passed 4 production-preview tests using locally cached Chromium. The new browser test covers direct Schools and Rentals routes and the product-specific contact handoff. Product and partner interest use the existing contact workflow. There is no dedicated waiting-list workflow or live production verification. The initial main bundle is 1,101.02 kB minified and 336.74 kB gzip. The existing chunk-size warning remains.
+
+# DayTech strategic platform increment 2
+
+## Integration sequence
+
+Reviewed remote main at `0932cbd`, draft PR #2 at `988a31d`, and the prior strategic head at `b242a05`. The strategic branch already contains the patch-equivalent copy `b1530ac` of PR #2's reviewed increment. Preserve the uncommitted trusted quotation implementation in the separate Milestone 2 checkout. Shared conflict areas include Express routes, AdminPage, Firestore rules, dependency manifests, the REST adapter and emulator tests. The REST adapter was reused from that checkout without editing or staging its files.
+
+Review and finish Milestone 2 independently. After owner approval, integrate the strategic branch against the merged baseline, omit the patch-equivalent replay, reconcile the shared REST adapter and rules, then rerun both branches' full checks. No merge, history rewrite, PR closure or production deployment occurred.
+
+## Implemented and verified
+
+Feature commit `fe4290c` contains the homepage, responsive hero, growth endpoints, admin lead panel, private rules, browser tools and regression tests. Use `git show --stat fe4290c` for the changed-file list. TypeScript and the Vite production build passed. Bun 1.4.5 accepted the frozen lockfile in lockfile-only mode. Vitest passed 18 API tests. Firestore emulator passed 14 tests. Playwright passed 7 tests against the production build with cached Chromium. The real local emulator regression covers concurrent posting, exactly one stored registration, bearer role checks, absent public reads, server-only storage and a stale staff update. The Playwright suite opens all 11 product pages, verifies no pending launch links and exercises invoice, profit and QR output. A separate Chromium check found no horizontal overflow and verified hero CTA tab order at 390, 768 and 1440 px in both themes. Full accessibility auditing and live credential verification remain open.
+
+The existing hero JPEG is 820,159 bytes. Responsive WebP derivatives are 20,150 bytes at 480w, 53,994 bytes at 900w and 84,546 bytes at 1320w. The main JS chunk changed from 1,101.02 kB minified and 336.74 kB gzip to 1,102.48 kB and 337.38 kB. The tools are a separate 25.20 kB chunk. The large main chunk remains. Firebase is imported through the root provider and the navbar and homepage import catalogue data. Measuring finer-grained preload changes remains open.
+
+## Cost and outstanding acceptance criteria
+
+A successful new registration normally uses two Firestore document reads and two writes, including the quota record. A repeat normally uses one read. Updating a lead uses two writes and one or two reads. Listing consumes reads proportional to the number of returned leads. Conflict retries can add reads. Client-only tools have no database or paid service dependency. These are operation counts, not a monthly bill estimate. Document the expected submission volumes, retention policy and Firestore allowance before enabling collection. No paid feature was enabled.
+
+Provision an approved preview with a dedicated Firebase database, server-only `FIRESTORE_SERVICE_ACCOUNT_JSON` and stable `GROWTH_HASH_SECRET` before real registrations. Preserve collection privacy. Verify the platform forwarding header in preview and keep rate counters and audit records on an approved retention schedule. [Vercel request headers](https://vercel.com/docs/headers/request-headers)
+
+Product release publishing, approved pricing and origin management, historical funnel analytics, enrolment and advanced partner workflows remain pending. Partner invitations are an admin stage without automated email delivery. The responsive photograph derives from the existing illustration. Rights review and sourcing of additional sector photography remain pending. The recommended next increment is protected draft-to-release publishing with approved origin and pricing checks, followed by preview verification and scalable lead reporting.
