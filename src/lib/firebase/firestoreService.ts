@@ -256,6 +256,7 @@ export async function syncUserAccountOnSignIn(user: User): Promise<UserAccountRe
           {
             uid: clampStr(user.uid, 128),
             email: clampStr(email, 160),
+            emailVerified: true,
             updatedAt: serverTimestamp(),
           },
           { merge: true }
@@ -275,6 +276,7 @@ export async function syncUserAccountOnSignIn(user: User): Promise<UserAccountRe
         {
           uid: clampStr(user.uid, 128),
           email: clampStr(email, 160),
+          emailVerified: true,
           updatedAt: serverTimestamp(),
         },
         { merge: true }

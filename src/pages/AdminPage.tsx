@@ -1,6 +1,6 @@
 import { ProductPublishingPanel } from '../components/ProductPublishingPanel';
 import { GrowthLeadPanel } from '../components/GrowthLeadPanel';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   CalendarClock,
   ClipboardList,
@@ -50,12 +50,10 @@ import {
   createProjectInFirestore,
   fetchQuotationItemsFromFirestore,
   QuotationLineInput,
-  saveQuotationInFirestore,
   toIsoString,
   updateDemoInFirestore,
   updateEnquiryInFirestore,
   updateProjectInFirestore,
-  updateQuotationStatusInFirestore,
   updateSupportTicketInFirestore,
   updateUserAccountInFirestore,
 } from '../lib/firebase/firestoreService';
@@ -142,6 +140,8 @@ function AdminSession() {
   const [fsAuditLogs, setFsAuditLogs] = useState<AuditLogRecord[]>([]);
 
   // Quotation Builder & PDF Preview state
+  const [editingRevision, setEditingRevision] = useState<number>();
+  const quotationRequest = useRef<{ body: string; key: string } | null>(null);
   const [editingQuotationNumber, setEditingQuotationNumber] = useState<string | null>(null);
   const [quoteSaving, setQuoteSaving] = useState(false);
   const [quotePresetKey, setQuotePresetKey] = useState('');
@@ -265,6 +265,7 @@ function AdminSession() {
           return {
             id: d.id,
             quotationNumber: String(r.quotationNumber || d.id),
+            revision: typeof r.revision === 'number' ? r.revision : undefined,
             enquiryId: r.enquiryId ? String(r.enquiryId) : undefined,
             clientUid: r.clientUid ? String(r.clientUid) : undefined,
             clientName: String(r.clientName || ''),
@@ -678,27 +679,30 @@ function AdminSession() {
           notes: quoteForm.notes || undefined,
           items: quoteItems,
         };
-        const validation = await fetch('/api/quotations/validate', {
+        const body = JSON.stringify({ ...quotation, expectedRevision: editingQuotationNumber ? editingRevision : undefined });
+        if (quotationRequest.current?.body !== body) {
+          quotationRequest.current = { body, key: crypto.randomUUID() };
+        }
+        const resultResponse = await fetch('/api/admin/quotations', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ...quotation,
-            subtotal: liveTotals.subtotal,
-            discountAmount: liveTotals.discountAmount,
-            taxAmount: liveTotals.taxAmount,
-            totalAmount: liveTotals.totalAmount,
-          }),
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${await user?.getIdToken()}`,
+            'Idempotency-Key': quotationRequest.current.key,
+          },
+          body,
         });
-        const verdict = await validation.json();
-        if (!validation.ok || verdict.valid !== true) {
-          setActionNotice(verdict.error || 'Quotation validation failed. Review its fields and try again.');
+        const result = await resultResponse.json();
+        if (!resultResponse.ok) {
+          setActionNotice(result.error || 'Unable to save quotation.');
           return;
         }
-        const result = await saveQuotationInFirestore(quotation);
+        quotationRequest.current = null;
+        setEditingRevision(result.revision);
         setEditingQuotationNumber(result.quotationNumber);
         setActionNotice(
           `Quotation ${result.quotationNumber} saved as "${targetStatus}" (${formatCurrencyValue(
-            liveTotals.totalAmount,
+            result.totalAmount,
             quoteForm.currency
           )}).`
         );
@@ -751,6 +755,7 @@ function AdminSession() {
         ? await fetchQuotationItemsFromFirestore(q.id)
         : q.items || [];
       setEditingQuotationNumber(q.quotationNumber);
+      setEditingRevision(q.revision ?? 0);
       setQuoteForm({
         enquiryId: q.enquiryId || '',
         clientUid: q.clientUid || '',
@@ -863,7 +868,16 @@ function AdminSession() {
     setActionNotice(null);
     if (usingFirestoreAdmin) {
       try {
-        await updateQuotationStatusInFirestore(id, status, true);
+        const revision = fsQuotations.find(quotation => quotation.id === id)?.revision ?? 0;
+        const response = await fetch(`/api/admin/quotations/${encodeURIComponent(id)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await user?.getIdToken()}` },
+          body: JSON.stringify({ status, revision }),
+        });
+        if (!response.ok) {
+          const result = await response.json();
+          throw new Error(result.error || 'Unable to update quotation status.');
+        }
         setActionNotice(`Quotation ${id} updated to "${status}".`);
       } catch (err) {
         setActionNotice(err instanceof Error ? err.message : 'Unable to update quotation status.');

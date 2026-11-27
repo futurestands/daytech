@@ -302,3 +302,116 @@ describe('protected publishing', () => {
     }
   }, 25_000);
 });
+
+describe('trusted quotation API with Firestore persistence', () => {
+  it('commits authoritative totals once, protects revisions and serves revocable links', async () => {
+    const { createApiApp } = await import('../server/app');
+    const { randomUUID } = await import('node:crypto');
+    const verifyToken = async (uid: string) => ({ uid, emailVerified: true });
+    const app = createApiApp({
+      env: { NODE_ENV: 'test', FIRESTORE_EMULATOR_HOST: process.env.FIRESTORE_EMULATOR_HOST },
+      adminAuthDeps: {
+        verifyToken,
+        fetchUser: async (_token, uid) => ({ uid, role: uid === 'test-sales' ? 'sales_officer' : uid === 'test-admin' ? 'admin' : 'client', active: uid !== 'disabled' }),
+      },
+      verifyClientToken: async uid => ({ ...await verifyToken(uid), issuer: 'test', audience: 'test', exp: 100, iat: 1 }),
+      fetchFirestoreDoc: async uid => ({ active: uid !== 'disabled' }),
+    });
+    await env.withSecurityRulesDisabled(async ctx => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'users/test-sales'), profile('test-sales', 'sales_officer'));
+      await setDoc(doc(db, 'users/client-owner'), profile('client-owner', 'client'));
+      await setDoc(doc(db, 'users/client-owner/private/info'), { uid: 'client-owner', email: 'customer@example.invalid', emailVerified: true });
+      await setDoc(doc(db, 'enquiries/DTQ-2026-GUEST1'), { status: 'New', email: 'customer@example.invalid' });
+    });
+    const server = await new Promise<ReturnType<typeof app.listen>>(resolve => {
+      const started = app.listen(0, '127.0.0.1', () => resolve(started));
+    });
+    try {
+      const address = server.address();
+      if (!address || typeof address === 'string') throw new Error('Missing test address.');
+      const origin = `http://127.0.0.1:${address.port}`;
+      const request = (path: string, body?: object, uid = 'test-sales', method = 'POST', key = randomUUID()) =>
+        fetch(origin + path, {
+          method,
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + uid, 'Idempotency-Key': key },
+          body: body && JSON.stringify(body),
+        });
+      const quote = {
+        clientUid: 'client-owner', clientName: 'Test Customer', clientOrganisation: 'Test Organisation',
+        clientEmail: 'customer@example.invalid', title: 'Service quotation', currency: 'UGX',
+        discountPercent: 10, taxPercent: 18, status: 'Sent', validUntil: '2099-12-31',
+        paymentTerms: 'On delivery', totalAmount: 1,
+        items: [{ itemType: 'Service', description: 'Test service', unit: 'hour', quantity: 2, unitPrice: 100000 }],
+      };
+      const endpoint = '/api/admin/quotations';
+      const link = '/api/admin/enquiries/DTQ-2026-GUEST1/link-customer';
+      expect((await request(link, { clientUid: 'client-owner', verifiedOriginalContact: true }, 'unprivileged')).status).toBe(403);
+      expect((await request(link, { clientUid: 'client-owner', verifiedOriginalContact: true })).status).toBe(204);
+      Object.assign(quote, { enquiryId: 'DTQ-2026-GUEST1' });
+      const key = randomUUID();
+      const responses = await Promise.all([
+        request(endpoint, quote, 'test-sales', 'POST', key),
+        request(endpoint, quote, 'test-sales', 'POST', key),
+      ]);
+      for (const response of responses) expect(response.status).toBe(201);
+      const [first, second] = await Promise.all(responses.map(response => response.json()));
+      expect(first).toEqual(second);
+      expect(first).toMatchObject({ revision: 1, totalAmount: 212400 });
+      const number = first.quotationNumber;
+      const path = 'quotations/' + number;
+
+      const browser = caller('test-sales');
+      await assertFails(setDoc(doc(browser, 'quotations/QTE-2026-BYPASS'), quote));
+      await assertFails(updateDoc(doc(browser, path), { totalAmount: 1, updatedAt: serverTimestamp() }));
+      await assertFails(updateDoc(doc(browser, path + '/items/r1-1'), { unitPrice: 1 }));
+      await assertFails(updateDoc(doc(browser, path + '/revisions/1'), { totalAmount: 1 }));
+      expect((await request(endpoint, { ...quote, title: 'Conflicting request' }, 'test-sales', 'POST', key)).status).toBe(409);
+      expect((await request(endpoint, quote, 'unprivileged')).status).toBe(403);
+
+      const shareEndpoint = endpoint + '/share-link';
+      const issued = await request(shareEndpoint, { quotationNumber: number, revision: 1 });
+      expect(issued.status).toBe(201);
+      const share = await issued.json();
+      const token = share.relativeUrl.split('#quote=')[1];
+      const readShare = (value: string) => request('/api/portal/quotation-share', { token: value }, '');
+      const shared = await readShare(token);
+      expect(shared.status).toBe(200);
+      expect(await shared.json()).toMatchObject({ totalAmount: 212400, quotation: { items: [{ lineTotal: 200000 }] } });
+      const expiring = await (await request(shareEndpoint, { quotationNumber: number, revision: 1 })).json();
+      await env.withSecurityRulesDisabled(ctx => updateDoc(doc(ctx.firestore(), 'quotationShares/' + expiring.linkId), {
+        expiresAt: '2026-01-01T00:00:00.000Z',
+      }));
+      expect((await readShare(expiring.relativeUrl.split('#quote=')[1])).status).toBe(404);
+      expect((await request(shareEndpoint + '/' + share.linkId, undefined, 'test-sales', 'DELETE')).status).toBe(204);
+      expect((await readShare(token)).status).toBe(404);
+
+      const amended = await request(endpoint, { ...quote, quotationNumber: number, expectedRevision: 1, taxPercent: 0 });
+      expect(amended.status).toBe(200);
+      expect(await amended.json()).toMatchObject({ revision: 2, totalAmount: 180000 });
+      const prior = await assertSucceeds(getDoc(doc(browser, path + '/revisions/1')));
+      expect(prior.data()).toMatchObject({ totalAmount: 212400 });
+      const decision = '/api/portal/quotations/' + number + '/decision';
+      expect((await request(decision, { revision: 1, status: 'Accepted' }, 'client-owner')).status).toBe(409);
+      expect((await request(decision, { revision: 2, status: 'Accepted' }, 'other-customer')).status).toBe(404);
+      const decisions = await Promise.all([
+        request(decision, { revision: 2, status: 'Accepted' }, 'client-owner'),
+        request(decision, { revision: 2, status: 'Accepted' }, 'client-owner'),
+      ]);
+      expect(decisions.map(response => response.status).sort()).toEqual([200, 409]);
+      const projectEndpoint = endpoint + '/' + number + '/project';
+      expect((await request(projectEndpoint, { revision: 2 })).status).toBe(403);
+      expect((await request(projectEndpoint, { revision: 1 }, 'test-admin')).status).toBe(409);
+      for (let i = 0; i < 2; i++) {
+        const converted = await request(projectEndpoint, { revision: 2 }, 'test-admin');
+        expect(converted.status).toBe(200);
+        expect(await converted.json()).toEqual({ projectId: number });
+      }
+      const project = await assertSucceeds(getDoc(doc(caller('client-owner'), 'projects/' + number)));
+      expect(project.data()).toMatchObject({ ownerUid: 'client-owner', stage: 'Discovery' });
+      expect((await request(endpoint, { ...quote, quotationNumber: number, expectedRevision: 2 })).status).toBe(409);
+    } finally {
+      await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+    }
+  }, 25_000);
+});
