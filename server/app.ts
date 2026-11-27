@@ -1,3 +1,4 @@
+import { registerPublishingRoutes } from './publishingRoutes';
 import crypto from 'crypto';
 import { registerGrowthRoutes } from './growthRoutes';
 import express, { NextFunction, Request, Response } from 'express';
@@ -201,6 +202,7 @@ export function createApiApp(deps: ApiAppDeps = {}) {
   }
 
   registerGrowthRoutes(app, env, adminGuard);
+  registerPublishingRoutes(app, env, adminGuard);
 
   app.get('/api/health', (_req, res) => {
     const storage = getStorageStatus(env);

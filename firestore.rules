@@ -318,6 +318,14 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Publishing is available only through the protected server workflow.
+    match /productDrafts/{id} { allow read, write: if false; }
+    match /productReleaseEvidence/{id} { allow read, write: if false; }
+    match /productApprovedOrigins/{id} { allow read, write: if false; }
+    match /productPricingProposals/{id} { allow read, write: if false; }
+    match /productApprovedPricing/{id} { allow read, write: if false; }
+    match /productReleases/{id} { allow read, write: if false; }
+
     // Growth registrations and distributed quota counters are server-only.
     match /growthLeads/{leadId} { allow read, write: if false; }
     match /growthRateLimits/{bucketId} { allow read, write: if false; }

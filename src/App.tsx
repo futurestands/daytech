@@ -3,7 +3,6 @@ import { Radio } from 'lucide-react';
 import { BrowserRouter, Link, Route, Routes, useLocation } from 'react-router-dom';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AppProvider } from './context/AppContext';
-import { FirebaseProvider } from './context/FirebaseContext';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { parseBooleanFlag } from './config/features';
@@ -100,61 +99,59 @@ export default function App() {
   return (
     <ErrorBoundary>
       <AppProvider>
-        <FirebaseProvider>
-          <BrowserRouter>
-            <ScrollToTop />
-            <div className="min-h-screen flex flex-col bg-[#F8FAFC] dark:bg-[#020617] text-[#0B1120] dark:text-slate-100">
-              {gmpQuotaExceeded && (
-                <div className="bg-amber-50 border-b border-amber-200 text-amber-900 px-4 py-2.5 text-xs md:text-sm text-center sticky top-0 z-50 shadow-sm print:hidden">
-                  <span>
-                    Google Maps Platform quota reached. If you are the app owner, visit{' '}
-                    <a
-                      href="https://developers.google.com/maps/ai/ai-studio?utm_campaign=gmp_mcp_codeassist_v1_aistudio#quota_exceeded_errors"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="underline font-semibold text-amber-950 hover:text-amber-800"
-                    >
-                      maps developer site
-                    </a>{' '}
-                    for instructions to update your account.
-                  </span>
-                </div>
-              )}
-              <Navbar />
-              <main className="flex-1">
-                <Suspense fallback={<p role="status" className="p-8 text-center">Loading page…</p>}>
-                  <Routes>
-                    <Route path="/" element={<HomePage />} />
-                    <Route path="/about" element={<AboutPage />} />
-                    <Route path="/services" element={<ServicesPage />} />
-                    <Route path="/services/:slug" element={<ServiceDetailPage />} />
-                    <Route path="/products" element={<ProductsPage />} />
-                    <Route path="/products/:slug" element={<ProductDetailPage />} />
-                    <Route path="/industries" element={<IndustriesPage />} />
-                    <Route path="/industries/:slug" element={<IndustryDetailPage />} />
-                    <Route path="/portfolio" element={<PortfolioPage />} />
-                    <Route path="/insights" element={<InsightsPage />} />
-                    <Route path="/quote" element={<QuotePage />} />
-                    <Route path="/demo" element={<DemoPage />} />
-                    <Route path="/partners" element={<CompanyProgrammesPage mode="partners" />} />
-                    <Route path="/academy" element={<CompanyProgrammesPage mode="academy" />} />
-                    <Route path="/product-interest" element={<GrowthApplicationPage />} />
-                    <Route path="/partners/apply" element={<GrowthApplicationPage partner />} />
-                    <Route path="/tools" element={<FreeToolsPage />} />
-                    <Route path="/contact" element={<ContactPage />} />
-                    <Route path="/portal" element={<ClientPortalPage />} />
-                    <Route path="/admin" element={<AdminPage />} />
-                    <Route path="/legal/privacy" element={<LegalPage mode="privacy" />} />
-                    <Route path="/legal/terms" element={<LegalPage mode="terms" />} />
-                    <Route path="*" element={<NotFoundPage />} />
-                  </Routes>
-                </Suspense>
-              </main>
-              <Footer />
-              {parseBooleanFlag(import.meta.env.VITE_FEATURE_LIVE_VOICE, true) && <VoiceAdvisor />}
-            </div>
-          </BrowserRouter>
-        </FirebaseProvider>
+        <BrowserRouter>
+          <ScrollToTop />
+          <div className="min-h-screen flex flex-col bg-[#F8FAFC] dark:bg-[#020617] text-[#0B1120] dark:text-slate-100">
+            {gmpQuotaExceeded && (
+              <div className="bg-amber-50 border-b border-amber-200 text-amber-900 px-4 py-2.5 text-xs md:text-sm text-center sticky top-0 z-50 shadow-sm print:hidden">
+                <span>
+                  Google Maps Platform quota reached. If you are the app owner, visit{' '}
+                  <a
+                    href="https://developers.google.com/maps/ai/ai-studio?utm_campaign=gmp_mcp_codeassist_v1_aistudio#quota_exceeded_errors"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline font-semibold text-amber-950 hover:text-amber-800"
+                  >
+                    maps developer site
+                  </a>{' '}
+                  for instructions to update your account.
+                </span>
+              </div>
+            )}
+            <Navbar />
+            <main className="flex-1">
+              <Suspense fallback={<p role="status" className="p-8 text-center">Loading page…</p>}>
+                <Routes>
+                  <Route path="/" element={<HomePage />} />
+                  <Route path="/about" element={<AboutPage />} />
+                  <Route path="/services" element={<ServicesPage />} />
+                  <Route path="/services/:slug" element={<ServiceDetailPage />} />
+                  <Route path="/products" element={<ProductsPage />} />
+                  <Route path="/products/:slug" element={<ProductDetailPage />} />
+                  <Route path="/industries" element={<IndustriesPage />} />
+                  <Route path="/industries/:slug" element={<IndustryDetailPage />} />
+                  <Route path="/portfolio" element={<PortfolioPage />} />
+                  <Route path="/insights" element={<InsightsPage />} />
+                  <Route path="/quote" element={<QuotePage />} />
+                  <Route path="/demo" element={<DemoPage />} />
+                  <Route path="/partners" element={<CompanyProgrammesPage mode="partners" />} />
+                  <Route path="/academy" element={<CompanyProgrammesPage mode="academy" />} />
+                  <Route path="/product-interest" element={<GrowthApplicationPage />} />
+                  <Route path="/partners/apply" element={<GrowthApplicationPage partner />} />
+                  <Route path="/tools" element={<FreeToolsPage />} />
+                  <Route path="/contact" element={<ContactPage />} />
+                  <Route path="/portal" element={<ClientPortalPage />} />
+                  <Route path="/admin" element={<AdminPage />} />
+                  <Route path="/legal/privacy" element={<LegalPage mode="privacy" />} />
+                  <Route path="/legal/terms" element={<LegalPage mode="terms" />} />
+                  <Route path="*" element={<NotFoundPage />} />
+                </Routes>
+              </Suspense>
+            </main>
+            <Footer />
+            {parseBooleanFlag(import.meta.env.VITE_FEATURE_LIVE_VOICE, true) && <VoiceAdvisor />}
+          </div>
+        </BrowserRouter>
       </AppProvider>
     </ErrorBoundary>
   );

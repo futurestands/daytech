@@ -12,7 +12,7 @@ beforeAll(async () => {
     firestore: { rules: readFileSync('firestore.rules', 'utf8') },
   });
   await env.clearFirestore();
-});
+}, 30_000);
 
 afterAll(async () => { await env?.cleanup(); });
 
@@ -152,7 +152,7 @@ describe('dedicated growth intake', () => {
       env: { NODE_ENV: 'test', FIRESTORE_EMULATOR_HOST: process.env.FIRESTORE_EMULATOR_HOST, GROWTH_HASH_SECRET: 'test-only-key-not-used-outside-the-emulator' },
       adminAuthDeps: {
         verifyToken: async uid => ({ uid, emailVerified: true }),
-        fetchUser: async (_token, uid) => ({ uid, role: uid === 'admin' ? 'admin' : 'client', active: true }),
+        fetchUser: async (_token, uid) => ({ uid, role: ['admin', 'sales_officer', 'super_admin', 'content_manager'].includes(uid) ? uid : 'client', active: true }),
       },
     });
     const server = await new Promise<ReturnType<typeof app.listen>>(resolve => {
@@ -185,6 +185,95 @@ describe('dedicated growth intake', () => {
       });
       expect((await update()).status).toBe(204);
       expect((await update()).status).toBe(409);
+      const sales = { Authorization: 'Bearer sales_officer', 'Content-Type': 'application/json' };
+      const scoped = await fetch(origin + '/api/admin/growth', { headers: sales });
+      expect(scoped.status).toBe(200);
+      expect((await scoped.json()).rows).toEqual([]);
+      expect((await fetch(origin + '/api/admin/growth/export', { headers: sales })).status).toBe(403);
+      expect((await fetch(origin + '/api/admin/growth/export', { headers })).status).toBe(200);
+      expect((await fetch(origin + '/api/admin/growth/' + row.id, {
+        method: 'PATCH', headers: sales, body: JSON.stringify({ version: row.version, status: 'Qualified', notes: '', assignedTo: 'sales_officer' }),
+      })).status).toBe(404);
+      const newRow = (await (await fetch(origin + '/api/admin/growth', { headers })).json()).rows[0];
+      const patchStatus = (version: string, status: string) => fetch(origin + '/api/admin/growth/' + row.id, {
+        method: 'PATCH', headers, body: JSON.stringify({ version, status, notes: '', assignedTo: '' }),
+      });
+      expect((await patchStatus(newRow.version, 'Opted out')).status).toBe(204);
+      const opted = (await (await fetch(origin + '/api/admin/growth', { headers })).json()).rows[0];
+      expect((await patchStatus(opted.version, 'Qualified')).status).toBe(409);
+      const from = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+      const analytics = await fetch(origin + '/api/admin/growth/analytics?from=' + from + '&product=schools', { headers });
+      expect(analytics.status).toBe(200);
+      expect(await analytics.json()).toMatchObject({ registrations: 1, optedOut: 1, conversionRate: 0 });
+
+
+    } finally {
+      await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+    }
+  }, 25_000);
+});
+
+
+describe('protected publishing', () => {
+  it('guards evidence and pricing and atomically publishes one approved projection', async () => {
+    const { createApiApp } = await import('../server/app');
+    const app = createApiApp({
+      env: { NODE_ENV: 'test', FIRESTORE_EMULATOR_HOST: process.env.FIRESTORE_EMULATOR_HOST },
+      adminAuthDeps: {
+        verifyToken: async uid => ({ uid, emailVerified: true }),
+        fetchUser: async (_token, uid) => ({ uid, role: uid, active: true }),
+      },
+    });
+    const server = await new Promise<ReturnType<typeof app.listen>>(resolve => {
+      const instance = app.listen(0, '127.0.0.1', () => resolve(instance));
+    });
+    try {
+      const address = server.address();
+      if (!address || typeof address === 'string') throw new Error('Missing test address.');
+      const origin = 'http://127.0.0.1:' + address.port;
+      const req = (route: string, user?: string, method = 'GET', body?: object) => fetch(origin + route, {
+        method, headers: { 'Content-Type': 'application/json', ...(user && { Authorization: 'Bearer ' + user }) },
+        body: body && JSON.stringify(body),
+      });
+      const path = '/api/admin/product-drafts/inventory';
+      const read = async () => (await req(path, 'content_manager')).json();
+      const draft = {
+        description: 'Verified product release testing', status: 'Available', capabilities: ['Works offline'],
+        releaseVersion: '1.1.0', evidence: 'Private emulator release evidence',
+        launchUrl: 'https://app.example.invalid/launch',
+        pricing: [{ name: 'Starter', cadence: 'Monthly', currency: 'UGX', amount: 35000, effectiveDate: '2026-11-27' }],
+      };
+      expect((await req(path)).status).toBe(401);
+      expect((await req(path, 'content_manager', 'PUT', { draft, version: null })).status).toBe(204);
+      expect((await req('/api/admin/product-drafts/waterops', 'content_manager', 'PUT', { draft, version: null })).status).toBe(400);
+      await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), 'productDrafts/inventory')));
+      expect((await req('/api/products/inventory/release')).status).toBe(404);
+      expect((await req(path + '/review', 'content_manager', 'POST', { version: (await read()).version })).status).toBe(204);
+      const reviewed = (await read()).version;
+      const approve = (approvedOrigin: string, approvePricing: boolean) => req(path + '/approve', 'super_admin', 'POST', {
+        version: reviewed, approval: { approvedOrigin, approvePricing },
+      });
+      expect((await approve('https://app.example.invalid', false)).status).toBe(400);
+      expect((await approve('https://other.example.invalid', true)).status).toBe(400);
+      expect((await approve('https://app.example.invalid', true)).status).toBe(204);
+      const approved = { version: (await read()).version };
+      expect((await req(path + '/publish', 'content_manager', 'POST', approved)).status).toBe(403);
+      const publish = () => req(path + '/publish', 'super_admin', 'POST', approved);
+      expect((await Promise.all([publish(), publish()])).map(item => item.status).sort()).toEqual([204, 409]);
+      const release = await (await req('/api/products/inventory/release')).json();
+      expect(release).toMatchObject({ status: 'Available', launchUrl: draft.launchUrl, pricing: draft.pricing });
+      expect(release).not.toHaveProperty('evidence');
+      expect(JSON.stringify(release)).not.toContain('Private emulator');
+      const retired = { ...draft, status: 'Retired', launchUrl: '', pricing: [] };
+      expect((await req(path, 'content_manager', 'PUT', { draft: retired, version: (await read()).version })).status).toBe(204);
+      expect((await req(path + '/review', 'content_manager', 'POST', { version: (await read()).version })).status).toBe(204);
+      expect((await req(path + '/approve', 'super_admin', 'POST', {
+        version: (await read()).version, approval: { approvePricing: false },
+      })).status).toBe(204);
+      expect((await req(path + '/publish', 'super_admin', 'POST', { version: (await read()).version })).status).toBe(204);
+      const withdrawn = await (await req('/api/products/inventory/release')).json();
+      expect(withdrawn).toMatchObject({ status: 'Retired', launchUrl: '', pricing: [] });
+
     } finally {
       await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
     }

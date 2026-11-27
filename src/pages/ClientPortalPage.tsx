@@ -22,7 +22,7 @@ import { SEOHead } from '../components/SEOHead';
 import { QuotationDocument } from '../components/QuotationDocument';
 import { formatCurrencyValue } from '../data/products';
 import { useAppContext } from '../context/AppContext';
-import { useFirebase } from '../context/FirebaseContext';
+import { FirebaseProvider, useFirebase } from '../context/FirebaseContext';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase/client';
 import {
   createSupportTicketInFirestore,
@@ -70,6 +70,10 @@ const ticketSchema = z.object({
 });
 
 export function ClientPortalPage() {
+  return <FirebaseProvider><AuthenticatedPortal /></FirebaseProvider>;
+}
+
+function AuthenticatedPortal() {
   const { user } = useFirebase();
   return <ClientPortalSession key={user?.uid ?? 'guest'} />;
 }

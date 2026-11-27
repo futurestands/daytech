@@ -90,6 +90,45 @@ export function createFirestoreStore(env: NodeJS.ProcessEnv) {
       await assertOk(response);
       return response.json();
     },
+    async count(collection: string, filters: object[]) {
+      const response = await request(':runAggregationQuery', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ structuredAggregationQuery: {
+          structuredQuery: {
+            from: [{ collectionId: collection }],
+            ...(filters.length && { where: { compositeFilter: { op: 'AND', filters } } }),
+          },
+          aggregations: [{ alias: 'total', count: {} }],
+        } }),
+      });
+      await assertOk(response);
+      const rows = await response.json() as { result?: { aggregateFields: { total: { integerValue: string } } } }[];
+      return Number(rows.find(row => row.result)?.result?.aggregateFields.total.integerValue ?? 0);
+    },
+    async query(collection: string, filters: object[], limit: number, cursor?: { createdAt: string; id: string }): Promise<FirestoreDocument[]> {
+      const response = await request(':runQuery', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          structuredQuery: {
+            from: [{ collectionId: collection }],
+            ...(filters.length && { where: { compositeFilter: { op: 'AND', filters } } }),
+            orderBy: [
+              { field: { fieldPath: 'createdAt' }, direction: 'DESCENDING' },
+              { field: { fieldPath: '__name__' }, direction: 'DESCENDING' },
+            ],
+            ...(cursor && { startAt: { before: false, values: [
+              { timestampValue: cursor.createdAt }, { referenceValue: `${root}/${collection}/${cursor.id}` },
+            ] } }),
+            limit,
+          },
+        }),
+      });
+      await assertOk(response);
+      const rows = await response.json() as { document?: FirestoreDocument }[];
+      return rows.flatMap(row => row.document ? [row.document] : []);
+    },
     async list(path: string): Promise<FirestoreDocument[]> {
       const documents: FirestoreDocument[] = [];
       let pageToken = '';

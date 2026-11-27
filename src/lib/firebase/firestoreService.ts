@@ -81,6 +81,7 @@ export async function createEnquiryInFirestore(
 ): Promise<{ referenceNumber: string; createdAt: string; status: EnquiryRecord['status'] }> {
   const referenceNumber = generateReference('DTQ');
   const path = `enquiries/${referenceNumber}`;
+  await auth?.authStateReady();
   const currentUser = auth?.currentUser;
 
   const payload: Record<string, unknown> = {
@@ -139,6 +140,7 @@ export async function createDemoBookingInFirestore(
 ): Promise<{ referenceNumber: string; createdAt: string; status: DemoBookingRecord['status']; timezone: string }> {
   const referenceNumber = generateReference('DTD');
   const path = `demoBookings/${referenceNumber}`;
+  await auth?.authStateReady();
   const currentUser = auth?.currentUser;
   const timezone = clampStr(input.timezone || 'Africa/Kampala', 80);
 

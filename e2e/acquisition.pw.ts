@@ -94,3 +94,13 @@ test('invoice copy is printable and describes its non-tax scope', async ({ page 
   await expect(page.getByText('Support services · UGX 65,000')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Print or save as PDF' })).toBeVisible();
 });
+
+test('an approved public projection renders the verified product and launch destination', async ({ page }) => {
+  await page.route('**/api/products/inventory/release', route => route.fulfill({ json: {
+    status: 'Available', description: 'Published emulator fixture.', capabilities: ['Verified sample capability'],
+    launchUrl: 'https://app.example.invalid/launch', pricing: [],
+  } }));
+  await page.goto('/products/inventory');
+  await expect(page.getByText('Published emulator fixture.')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Launch Application' })).toHaveAttribute('href', 'https://app.example.invalid/launch');
+});

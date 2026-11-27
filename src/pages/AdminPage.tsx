@@ -1,3 +1,4 @@
+import { ProductPublishingPanel } from '../components/ProductPublishingPanel';
 import { GrowthLeadPanel } from '../components/GrowthLeadPanel';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
@@ -42,7 +43,7 @@ import {
   UserAccountRecord,
 } from '../types/domain';
 import { useAppContext } from '../context/AppContext';
-import { useFirebase } from '../context/FirebaseContext';
+import { FirebaseProvider, useFirebase } from '../context/FirebaseContext';
 import { db } from '../lib/firebase/client';
 import {
   computeQuotationTotals,
@@ -97,6 +98,10 @@ const DEFAULT_PAYMENT_TERMS =
   '50% mobilization deposit upon quotation acceptance, 30% upon UAT sign-off, and 20% upon production deployment.';
 
 export function AdminPage() {
+  return <FirebaseProvider><AuthenticatedAdmin /></FirebaseProvider>;
+}
+
+function AuthenticatedAdmin() {
   const { user } = useFirebase();
   return <AdminSession key={user?.uid ?? 'guest'} />;
 }
@@ -2211,6 +2216,8 @@ function AdminSession() {
                 )}
               </div>
             )}
+
+            {activeTab === 'content' && <ProductPublishingPanel />}
 
             {activeTab === 'content' && (
               <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#020617] p-6 space-y-5">
