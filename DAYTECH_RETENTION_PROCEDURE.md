@@ -9,4 +9,16 @@ Owner approval is required for the policy, dates, operator and target environmen
 5. When execution is approved, compare each record against its dry-run update time and recheck holds. Skip changed records. Record aggregate counts, ticket ID, operator and exceptions in an append-only audit record, with no contact details.
 6. Run post-maintenance checks for active customers, ownership, deduplication and opt-outs. Record any skipped or failed batches for a deliberate retry. Follow the approved privacy policy for handling exports and backups.
 
-This document prepares the operating procedure. No deletion script, production run, TTL or scheduled automation is enabled. An owner must approve the retention and legal-hold rules before the implementation can safely decide which records to delete.
+## Local dry run
+
+Start a dedicated empty Firestore Emulator using project `demo-daytech-milestone`, seed synthetic records only, then run:
+
+```sh
+node --import tsx scripts/retention-dry-run.ts demo-daytech-milestone "(default)" 127.0.0.1:8086 365 365 24 365
+```
+
+The final four arguments are draft lead days, partner days, quota grace hours and audit days. The reader enforces the exact demo project and default database, loopback, an allowlisted field mask, at most 50 records per page and ten pages per collection. A truncated result describes only that bounded scan. The report contains an action, run ID, cutoff, policy, aggregate dispositions and a digest that changes when a document version or disposition changes. Keep the report with the change ticket.
+
+Unmarked audit records go to review. The dry run identifies well-formed suppression candidates and preserves opted-out source records. The suppression shape contains the existing keyed digest, scope and event timestamp. The production intake path still depends on its existing deduplication record. Before any migration, implement lookup by the same keyed digest and scope, atomically keep suppression before removing personal fields, and verify suppression is effective under concurrent intake and after retries. Hold markers, version preconditions and an append-only audited operator action must be part of any subsequently approved apply operation.
+
+The current command performs no writes. The owner must approve retention, legal holds, suppression migration and any future apply operation separately.

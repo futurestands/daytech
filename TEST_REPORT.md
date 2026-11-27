@@ -185,3 +185,20 @@ The candidate starts at Increment 4 commit `da9b558`, including its reconciled q
 Local verification includes TypeScript, the production build, 26 unit tests, 16 Firestore emulator tests and 11 Playwright tests. A separate dev-browser run exercised the admin navigation, real-count chart controls and reduced motion using a synthetic local API fixture. The production browser suite checks the portal's keyboard navigation, the original public illustration, the removal of legacy public images, and notice availability. A real production Firebase session was outside scope.
 
 The release does not add Motion or any other runtime dependency. The admin-only style chunk is about 0.85 kB uncompressed. The main entry is 400.53 kB minified compared with 399.39 kB at the baseline. The notice generator gathered 112 distinct installed notices from 228 runtime dependency manifests and includes pinned upstream supplements. See [the third-party inventory](THIRD_PARTY_INVENTORY.md) for licensing review limitations and [the draft retention procedure](DAYTECH_RETENTION_PROCEDURE.md) for owner approval steps.
+## Strategic Increment 6
+
+Local verification passed TypeScript, the production build, 30 unit tests, 16 Firestore emulator tests and 11 Playwright tests. The read-only retention command classified seven records in a dedicated loopback emulator and reported zero writes. The secret-pattern scan passed, and Bun found zero high or critical findings across 515 audited packages. The generated SBOM lists 556 locked components, with 445 installed-manifest licence entries and pinned upstream supplements in the public notice file.
+
+GitHub Actions run 46005548446 verifies Increment 5. Increment 6 was kept local while deployment triggers and preview approval are unresolved. Its main client artefact hash matches the approved baseline.
+
+### Hosting safeguards follow-up
+
+The local successor passed TypeScript, production build, 34 unit tests, 16 Firestore emulator tests and 11 Playwright tests. The dependency audit found zero high or critical findings, and the secret-pattern scan passed. A synthetic Vercel preview build rejected incomplete configuration and built with the complete synthetic settings. The local deployment exclusion test verified the exact Increment 6 branch, nested CI and development names, and unchanged automatic deployment eligibility for `main`. No provider-side deployment or remote CI was triggered. See [the hosting decision report](DAYTECH_HOSTING_DECISION.md).
+
+### Zero-cost CI verification
+
+Frozen Bun installation, TypeScript, the production build, 34 unit tests, 16 isolated Firestore emulator tests and 11 Playwright tests passed locally. The build and tests used the proposed CI isolation flags. The secret-pattern scan passed, and Bun found zero high or critical findings across 515 audited packages. The refreshed local SBOM includes 556 locked components and 445 installed-manifest licence entries. Pinned runtime notices remain in the candidate. Actual cloud packaging and any remaining conditional licence obligations must be checked before commercial distribution.
+
+GitHub confirms the repository is public. The workflow uses a standard Linux runner and retains no hosted artifacts or caches. No new GitHub Actions run was triggered because provider-side no-deploy enforcement for the first branch push remains unverified. See [the CI and deployment gate](DAYTECH_CI_NO_DEPLOY.md) and [the flagship assessment](DAYTECH_FLAGSHIP_READINESS.md).
+
+See [the release acceptance report](DAYTECH_RELEASE_ACCEPTANCE.md) for the seven-run mobile comparisons, licence evidence, controlled preview status and release sequence.

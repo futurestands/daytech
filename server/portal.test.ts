@@ -6,7 +6,7 @@ import { mintQuotationShareToken } from './lib/quotationTokens';
 const secret = Buffer.alloc(32, 42).toString('hex');
 const ref = 'QTE-2026-ABC123';
 const app = createApiApp({
-  env: { NODE_ENV: 'production', VERCEL: '1', QUOTATION_LINK_SECRET: secret },
+  env: { NODE_ENV: 'production', VERCEL: '1', VERCEL_ENV: 'production', QUOTATION_LINK_SECRET: secret },
   adminAuthDeps: {
     verifyToken: async () => ({ uid: 'staff', emailVerified: true }),
     fetchUser: async () => ({ uid: 'staff', role: 'admin', active: true }),

@@ -2,6 +2,27 @@ import fs from 'fs';
 import path from 'path';
 import appletConfig from '../../firebase-applet-config.json' with { type: 'json' };
 import { CurrencyCode } from '../../src/types/domain';
+import { createPrivateKey } from 'node:crypto';
+import { needsPreviewIsolation, previewIntegrationsDisabled, previewProjectId, validPreviewWebConfig } from '../../src/config/previewIsolation';
+
+export function validPreviewRuntime(env: NodeJS.ProcessEnv) {
+  if (!validPreviewWebConfig(env, appletConfig.apiKey)) return false;
+  const origin = env.DAYTECH_PREVIEW_ORIGIN;
+  if (!origin || !/^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(origin) || env.APP_URL !== origin) return false;
+  const { GROWTH_HASH_SECRET: growth, QUOTATION_LINK_SECRET: quote } = env;
+  if (!growth || !quote || growth.trim().length < 32 || quote.trim().length < 32 || growth.trim() === quote.trim()) return false;
+  if (['ADMIN_ACCESS_KEY', 'ALLOW_UNKEYED_LOCAL_ADMIN', 'FIRESTORE_EMULATOR_HOST', 'GEMINI_API_KEY'].some(key => env[key]?.trim())) return false;
+  if (!previewIntegrationsDisabled(env)) return false;
+  try {
+    const identity = JSON.parse(env.FIRESTORE_SERVICE_ACCOUNT_JSON ?? '');
+    return identity.type === 'service_account' && identity.project_id === previewProjectId &&
+      identity.client_email === `daytech-preview-runtime@${previewProjectId}.iam.gserviceaccount.com` &&
+      identity.token_uri === 'https://oauth2.googleapis.com/token' &&
+      createPrivateKey(identity.private_key).asymmetricKeyType === 'rsa';
+  } catch {
+    return false;
+  }
+}
 
 export function parseBooleanFlag(value: unknown, fallback = false): boolean {
   if (typeof value === 'boolean') return value;
@@ -20,6 +41,9 @@ export interface ServerFirebaseConfig {
 }
 
 export function getServerFirebaseConfig(env: NodeJS.ProcessEnv = process.env): ServerFirebaseConfig {
+  if (env.DAYTECH_ENV === 'local' || (needsPreviewIsolation(env) && !validPreviewWebConfig(env, appletConfig.apiKey))) {
+    return { projectId: null, firestoreDatabaseId: '(default)' };
+  }
   const webFields = [
     env.VITE_FIREBASE_API_KEY, env.VITE_FIREBASE_AUTH_DOMAIN,
     env.VITE_FIREBASE_PROJECT_ID, env.VITE_FIREBASE_APP_ID,

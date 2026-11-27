@@ -1,5 +1,14 @@
 {
   "version": 2,
+  "git": {
+    "deploymentEnabled": {
+      "codex/**": false,
+      "ci/**": false,
+      "dev": false,
+      "develop": false,
+      "dev/**": false
+    }
+  },
   "rewrites": [
     {
       "source": "/robots.txt",

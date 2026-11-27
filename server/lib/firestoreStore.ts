@@ -1,5 +1,6 @@
 import { GoogleAuth } from 'google-auth-library';
-import { getServerFirebaseConfig } from './config';
+import { getServerFirebaseConfig, validPreviewRuntime } from './config';
+import { needsPreviewIsolation } from '../../src/config/previewIsolation';
 
 type Json = string | number | boolean | null | Json[] | { [key: string]: Json | undefined };
 type Fields = Record<string, Value>;
@@ -50,6 +51,7 @@ export class FirestoreStoreError extends Error {
 
 export function createFirestoreStore(env: NodeJS.ProcessEnv) {
   const cfg = getServerFirebaseConfig(env);
+  const blockedPreview = needsPreviewIsolation(env) && !validPreviewRuntime(env);
   const emulator = env.NODE_ENV === 'test' && env.FIRESTORE_EMULATOR_HOST;
   const project = emulator ? 'demo-daytech-milestone' : cfg.projectId;
   const database = emulator ? '(default)' : cfg.firestoreDatabaseId;
@@ -58,7 +60,7 @@ export function createFirestoreStore(env: NodeJS.ProcessEnv) {
   let auth: GoogleAuth | undefined;
 
   async function request(path: string, init?: RequestInit) {
-    if (!project || (emulator && !/^127\.0\.0\.1:\d+$/.test(emulator))) {
+    if (blockedPreview || !project || (emulator && !/^127\.0\.0\.1:\d+$/.test(emulator))) {
       throw new FirestoreStoreError(503);
     }
     const headers = new Headers(init?.headers);

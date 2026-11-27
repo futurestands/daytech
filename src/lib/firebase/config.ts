@@ -1,5 +1,6 @@
 import firebaseAppletConfig from '../../../firebase-applet-config.json';
 import { isFirebaseFeatureEnabled } from '../../config/features';
+import { needsPreviewIsolation, validPreviewWebConfig } from '../../config/previewIsolation';
 
 export const TARGET_FIREBASE_PROJECT_ID = 'daytech-bba8f';
 
@@ -46,6 +47,12 @@ export function resolveFirebaseConfig(
   env: Record<string, string | undefined> = import.meta.env as unknown as Record<string, string | undefined>,
   appletConfig: Partial<FirebaseWebConfig> | null | undefined = firebaseAppletConfig
 ): FirebaseConfigResolution {
+  if (needsPreviewIsolation(env) && !validPreviewWebConfig(env, firebaseAppletConfig.apiKey)) {
+    return {
+      enabled: false, source: 'unconfigured', config: null, partialEnvOverride: false, matchesTargetProject: false,
+      diagnosticNote: 'Preview Firebase configuration is unavailable.',
+    };
+  }
   const hasApplet = isValidConfigObject(appletConfig);
   const hasWebOverride = [
     env.VITE_FIREBASE_API_KEY, env.VITE_FIREBASE_AUTH_DOMAIN,
