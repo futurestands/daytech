@@ -7,3 +7,4 @@
 - Use isolated Firebase projects or emulators for testing. Obtain approval before changing production Firebase data or rules, deploying, or enabling a billable service.
 - Keep server secrets out of the repository, client bundles and logs. Use an independent quotation signing secret.
 - Report commands actually executed, results, manual setup and blockers. Require review before merging into main.
+- Use the applicable DayTech project skills under .cursor/skills for security, architecture, commercial readiness, licensing and quality assurance.

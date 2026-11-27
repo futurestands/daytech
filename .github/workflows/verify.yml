@@ -26,6 +26,5 @@ jobs:
       - run: bun run lint
       - run: bun run build
       - run: bun run vitest run
-      - run: npx --yes firebase-tools emulators:exec --only firestore --project demo-daytech-milestone --config firebase.test.json "bun run vitest run --config vitest.firestore.config.ts"
       - run: bun run playwright install --with-deps chromium
-      - run: bun run playwright test
+      - run: npx --yes firebase-tools emulators:exec --only firestore --project demo-daytech-milestone --config firebase.test.json "bun run vitest run --config vitest.firestore.config.ts && bun run playwright test"

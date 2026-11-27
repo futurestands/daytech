@@ -84,6 +84,25 @@ export function registerPublishingRoutes(app: Express, env: NodeJS.ProcessEnv, g
     } catch { return res.sendStatus(503); }
   });
 
+  app.get('/api/admin/product-revisions/:slug/:revisionId', guard(editors), async (req, res) => {
+    const { slug, revisionId } = req.params;
+    res.set('Cache-Control', 'no-store');
+    if (!actor(req)?.uid) return res.sendStatus(403);
+    if (!validSlug(slug) || !/^(current|legacy|[\da-f-]{36})$/.test(revisionId)) return res.sendStatus(404);
+    try {
+      const path = 'productReleases/' + slug;
+      const document = await store.get(revisionId === 'current' ? path : path + '/revisions/' + revisionId);
+      if (!document) return res.sendStatus(404);
+      const fields = flattenFirestoreDocument(document);
+      return res.json({
+        revisionId: fields.revisionId ?? 'legacy',
+        previousRevisionId: fields.previousRevisionId ?? '',
+        publishedAt: fields.publishedAt,
+        projection: projectionSchema.parse(JSON.parse(String(fields.projection))),
+      });
+    } catch { return res.sendStatus(503); }
+  });
+
   app.put('/api/admin/product-drafts/:slug', guard(editors), async (req, res) => {
     const auth = actor(req);
     const slug = String(req.params.slug);
@@ -140,6 +159,9 @@ export function registerPublishingRoutes(app: Express, env: NodeJS.ProcessEnv, g
       if (!('update' in next)) throw new Error('Expected an update.');
       next.update.fields = { ...document.fields, ...next.update.fields };
       const writes: FirestoreWrite[] = [next];
+      const audit: Record<string, string> = {
+        actorUid: auth.uid, actorEmail: '', action: 'PRODUCT_' + action.toUpperCase(), target: slug,
+      };
       if (action === 'approve') {
         const approval = approvalSchema.safeParse(req.body?.approval);
         if (!approval.success) return res.status(400).json({ error: 'Provide the approval details.' });
@@ -159,16 +181,29 @@ export function registerPublishingRoutes(app: Express, env: NodeJS.ProcessEnv, g
         }
       } else if (action === 'publish') {
         if (typeof stored.approvalId !== 'string' || !/^[\da-f-]{36}$/.test(stored.approvalId)) return res.sendStatus(409);
-        const previous = await store.get('productReleases/' + slug);
+        const releasePath = 'productReleases/' + slug;
+        const revisionPath = releasePath + '/revisions/' + stored.approvalId;
+        const previous = await store.get(releasePath);
+        const previousFields = previous && flattenFirestoreDocument(previous);
+        if (previousFields && typeof previousFields.revisionId !== 'string') {
+          // Archive the last pre-history release before replacing it.
+          const archive = store.put(releasePath + '/revisions/legacy', {}, { exists: false });
+          if (previous && 'update' in archive) archive.update.fields = previous.fields;
+          writes.push(archive);
+        }
         const projection = projectionSchema.parse(draft);
         if (projection.status !== 'Available') projection.launchUrl = '';
-        writes.push(store.put('productReleases/' + slug, {
+        const record = {
           projection: JSON.stringify(projection), approvalId: stored.approvalId, publishedBy: auth.uid,
-        }, previous ? { updateTime: previous.updateTime } : { exists: false }, ['publishedAt']));
+          revisionId: stored.approvalId, previousRevisionId: String(previousFields?.revisionId ?? (previous ? 'legacy' : '')),
+        };
+        writes.push(
+          store.put(revisionPath, record, { exists: false }, ['publishedAt']),
+          store.put(releasePath, record, previous ? { updateTime: previous.updateTime } : { exists: false }, ['publishedAt']),
+        );
+        audit.revisionId = stored.approvalId;
       }
-      writes.push(store.put('auditLogs/' + randomUUID(), {
-        actorUid: auth.uid, actorEmail: '', action: 'PRODUCT_' + action.toUpperCase(), target: slug,
-      }, { exists: false }, ['createdAt']));
+      writes.push(store.put('auditLogs/' + randomUUID(), audit, { exists: false }, ['createdAt']));
       await store.commit(writes);
       return res.sendStatus(204);
     } catch (error) { return res.sendStatus(errorStatus(error)); }

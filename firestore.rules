@@ -324,7 +324,10 @@ service cloud.firestore {
     match /productApprovedOrigins/{id} { allow read, write: if false; }
     match /productPricingProposals/{id} { allow read, write: if false; }
     match /productApprovedPricing/{id} { allow read, write: if false; }
-    match /productReleases/{id} { allow read, write: if false; }
+    match /productReleases/{id} {
+      allow read, write: if false;
+      match /revisions/{revisionId} { allow read, write: if false; }
+    }
 
     // Growth registrations and distributed quota counters are server-only.
     match /growthLeads/{leadId} { allow read, write: if false; }

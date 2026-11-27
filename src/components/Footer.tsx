@@ -137,6 +137,8 @@ export function Footer() {
               <label className="inline-flex items-center gap-2">
                 <span>Display Currency:</span>
                 <select
+                  id="footer-currency"
+                  name="currency"
                   value={currency}
                   onChange={(e) => setCurrency(e.target.value as 'UGX' | 'USD' | 'KES')}
                   aria-label="Select display currency"

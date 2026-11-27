@@ -244,7 +244,13 @@ describe('protected publishing', () => {
         pricing: [{ name: 'Starter', cadence: 'Monthly', currency: 'UGX', amount: 35000, effectiveDate: '2026-11-27' }],
       };
       expect((await req(path)).status).toBe(401);
-      expect((await req(path, 'content_manager', 'PUT', { draft, version: null })).status).toBe(204);
+      expect((await req(path, 'content_manager', 'PUT', { draft: { ...draft, evidence: '' }, version: null })).status).toBe(204);
+      expect((await req(path + '/review', 'content_manager', 'POST', { version: (await read()).version })).status).toBe(204);
+      expect((await req(path + '/approve', 'super_admin', 'POST', {
+        version: (await read()).version,
+        approval: { approvedOrigin: 'https://app.example.invalid', approvePricing: true },
+      })).status).toBe(400);
+      expect((await req(path, 'content_manager', 'PUT', { draft, version: (await read()).version })).status).toBe(204);
       expect((await req('/api/admin/product-drafts/waterops', 'content_manager', 'PUT', { draft, version: null })).status).toBe(400);
       await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), 'productDrafts/inventory')));
       expect((await req('/api/products/inventory/release')).status).toBe(404);
@@ -264,6 +270,11 @@ describe('protected publishing', () => {
       expect(release).toMatchObject({ status: 'Available', launchUrl: draft.launchUrl, pricing: draft.pricing });
       expect(release).not.toHaveProperty('evidence');
       expect(JSON.stringify(release)).not.toContain('Private emulator');
+      const history = '/api/admin/product-revisions/inventory/';
+      const first = await (await req(history + 'current', 'content_manager')).json();
+      expect(first).toMatchObject({ previousRevisionId: '', projection: { status: 'Available' } });
+      expect((await req(history + first.revisionId, 'sales_officer')).status).toBe(403);
+      await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), 'productReleases/inventory/revisions/' + first.revisionId)));
       const retired = { ...draft, status: 'Retired', launchUrl: '', pricing: [] };
       expect((await req(path, 'content_manager', 'PUT', { draft: retired, version: (await read()).version })).status).toBe(204);
       expect((await req(path + '/review', 'content_manager', 'POST', { version: (await read()).version })).status).toBe(204);
@@ -273,6 +284,9 @@ describe('protected publishing', () => {
       expect((await req(path + '/publish', 'super_admin', 'POST', { version: (await read()).version })).status).toBe(204);
       const withdrawn = await (await req('/api/products/inventory/release')).json();
       expect(withdrawn).toMatchObject({ status: 'Retired', launchUrl: '', pricing: [] });
+      const second = await (await req(history + 'current', 'content_manager')).json();
+      expect(second).toMatchObject({ previousRevisionId: first.revisionId, projection: { status: 'Retired' } });
+      expect(await (await req(history + first.revisionId, 'content_manager')).json()).toEqual(first);
 
     } finally {
       await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));

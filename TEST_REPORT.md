@@ -146,3 +146,26 @@ Draft PR #2 stays independent. Shared areas are Express registration, admin cont
 - `src/pages/ClientPortalPage.tsx`
 - `src/pages/ProductDetailPage.tsx`
 - `tests/firestore.emulator.ts`
+
+## Increment 3 follow-up verification
+
+- TypeScript and the Vite production build passed. Vitest passed 26 unit tests. The local Firestore Emulator passed 15 tests. Playwright passed 10 tests using the built site behind Express. The browser read a synthetic emulator release through the real public API and received a 401 from the draft endpoint. The staff approval and publication phases were verified separately through real Express handlers and the emulator with synthetic identities.
+- The security regression covers missing release evidence, unapproved pricing and origin, draft disclosure, unauthorised publishing and history access, concurrent publication, and preservation of the prior revision after retirement. Lead isolation, audited exports, CSV escaping, and terminal opt-outs remain covered by the existing suites.
+- The browser confirmed the favicon MIME type and keyboard operation of the labelled footer currency selector. Mobile checks used a 390 by 844 viewport. The favicon asset is excluded from the Vercel SPA rewrite. Vercel behaviour still needs an isolated preview check.
+- The secret-pattern scan and direct dependency licence metadata check passed. The generated CycloneDX SBOM contains 695 locked components, with 540 licences identified from installed manifests. The remaining 155 need evidence on their distribution platforms. The dependency audit exited nonzero with eight high-severity advisories in the existing lockfile involving `@fastify/busboy`, `@grpc/grpc-js`, `path-to-regexp` and `undici`. Triage reachable runtime paths and verify updates before commercial release. Preserve existing notices and obtain commercial photography rights evidence.
+- Draft PR #2 is open at `988a31d`. Its committed changes are already patch-equivalent to work on this strategic branch. Preserve the separate uncommitted quotation work, review it in its own branch, then integrate only new quotation changes, reconciling Firestore rules and adapter methods. Rerun both suites, including guest ownership, trusted totals and revocation, and verify data migration in isolation before merging.
+- Local validation used existing tooling, loopback services and synthetic data. No paid service, TTL policy, production Firebase rules change or deployment was performed. Real Google sign-in, production IAM and indexes, and all live commercial workflows remain outside this verification.
+
+### Cold mobile production build comparison
+
+Three fresh Chromium contexts per build at 390 by 844, 150 ms latency, 1.6 Mbit/s download and 4× CPU slowdown. Browser cache was disabled. Express served the local production files without compression. External requests, including Google Fonts, were blocked to isolate the run. The browser logged one failed resource load per run from that block and no uncaught application errors. All six measured local responses returned HTTP 200 in each run.
+
+| Median or observed metric | Before | After |
+| --- | ---: | ---: |
+| Largest Contentful Paint | 6,484 ms | 5,964 ms |
+| Cumulative Layout Shift | 0 | 0 |
+| Hero request start | 4,220 ms | 246 ms |
+| Initial JavaScript transfer | 533,837 bytes | 533,814 bytes |
+| Firestore bundle on homepage | No | No |
+
+Each capture requested one hero image and had no horizontal overflow. LCP still exceeded five seconds in the measured after runs. The stylesheet requests three Google font families and the local measurements do not quantify their live latency. The figures describe the local lab only.
