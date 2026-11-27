@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { registerGrowthRoutes } from './growthRoutes';
 import express, { NextFunction, Request, Response } from 'express';
 import { z } from 'zod';
 import {
@@ -74,6 +75,9 @@ const PUBLIC_SITEMAP_ROUTES = [
   '/products/finance',
   '/products/waterops',
   '/partners',
+  '/product-interest',
+  '/partners/apply',
+  '/tools',
   '/academy',
   '/products/schools',
   '/products/rentals',
@@ -195,6 +199,8 @@ export function createApiApp(deps: ApiAppDeps = {}) {
       return next();
     };
   }
+
+  registerGrowthRoutes(app, env, adminGuard);
 
   app.get('/api/health', (_req, res) => {
     const storage = getStorageStatus(env);

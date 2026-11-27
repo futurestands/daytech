@@ -42,7 +42,7 @@ export function QuotationDocument({
             <BrandMark />
           </div>
           <p className="text-xs font-medium text-slate-600">
-            Technology. Innovation. Impact.
+            Technology that moves business forward.
           </p>
           <div className="text-xs text-slate-600 space-y-0.5 pt-1">
             <p>{publicConfig.officialAddress || 'Kampala, Uganda · East Africa'}</p>

@@ -52,13 +52,45 @@ test('production preview serves the primary image with optional integrations dis
   expect(image.headers()['content-type']).toContain('image/jpeg');
 });
 
-test('planned products preserve public routes and collect interest through contact', async ({ page }) => {
+test('planned products preserve public routes and open dedicated interest form', async ({ page }) => {
   await page.goto('/products/schools');
   await expect(page.getByRole('heading', { name: 'DayTech Schools', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Planned capabilities' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Launch Application' })).toHaveCount(0);
   await page.getByRole('link', { name: 'Register early interest' }).click();
-  await expect(page.getByLabel('Subject')).toHaveValue('Product interest: DayTech Schools');
+  await expect(page.getByRole('combobox', { name: 'Product', exact: true })).toHaveValue('schools');
   await page.goto('/products/rentals');
   await expect(page.getByRole('heading', { name: 'DayTech Rentals', exact: true })).toBeVisible();
+});
+
+test('all catalogue routes resolve and pending products have no application launch', async ({ page }) => {
+  for (const slug of ['sacco', 'hr', 'hotelos', 'farm', 'crm', 'inventory', 'meet', 'finance', 'waterops', 'schools', 'rentals']) {
+    await page.goto('/products/' + slug);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(/^DayTech/);
+    await expect(page.getByRole('link', { name: 'Launch Application' })).toHaveCount(0);
+  }
+});
+
+test('profit and QR tools run in the browser', async ({ page }) => {
+  await page.goto('/tools');
+  await page.getByLabel('Revenue (UGX)').fill('150000');
+  await page.getByLabel('Costs (UGX)').fill('100000');
+  await page.getByRole('button', { name: 'Calculate profit' }).click();
+  await expect(page.getByText('Profit: UGX 50,000')).toBeVisible();
+  await page.getByLabel('Text or URL').fill('https://example.invalid');
+  await page.getByRole('button', { name: 'Generate QR code' }).click();
+  await expect(page.getByRole('img', { name: 'QR code for the entered text' })).toBeVisible();
+});
+
+test('invoice copy is printable and describes its non-tax scope', async ({ page }) => {
+  await page.goto('/tools');
+  await page.getByLabel('Business name').fill('Sample Shop');
+  await page.getByLabel('Customer name').fill('Sample Buyer');
+  await page.getByLabel('Invoice number').fill('INV-014');
+  await page.getByLabel('Description', { exact: true }).fill('Support services');
+  await page.getByLabel('Amount (UGX)').fill('65000');
+  await page.getByRole('button', { name: 'Preview invoice' }).click();
+  await expect(page.getByRole('heading', { name: 'Invoice INV-014' })).toBeVisible();
+  await expect(page.getByText('Support services · UGX 65,000')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Print or save as PDF' })).toBeVisible();
 });

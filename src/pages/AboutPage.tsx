@@ -45,7 +45,7 @@ export function AboutPage() {
               About DayTech Solutions
             </p>
             <h1 className="mt-2 font-display text-4xl sm:text-5xl font-bold tracking-tight text-[#0B1120] dark:text-white">
-              Technology. Innovation. Impact.
+              Technology that moves business forward.
             </h1>
             <p className="mt-5 text-lg text-slate-600 dark:text-slate-300 leading-relaxed">
               DayTech Solutions is a Uganda-based technology company built to serve clients across Africa and internationally. We combine software engineering, IT infrastructure, artificial intelligence, business automation, cloud computing, and cybersecurity into dependable digital transformation partnerships.

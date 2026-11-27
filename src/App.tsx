@@ -22,6 +22,8 @@ const InsightsPage = lazy(() => import('./pages/InsightsPage').then(module => ({
 const QuotePage = lazy(() => import('./pages/QuotePage').then(module => ({ default: module.QuotePage })));
 const DemoPage = lazy(() => import('./pages/DemoPage').then(module => ({ default: module.DemoPage })));
 const CompanyProgrammesPage = lazy(() => import('./pages/CompanyProgrammesPage').then(module => ({ default: module.CompanyProgrammesPage })));
+const GrowthApplicationPage = lazy(() => import('./pages/GrowthApplicationPage').then(module => ({ default: module.GrowthApplicationPage })));
+const FreeToolsPage = lazy(() => import('./pages/FreeToolsPage').then(module => ({ default: module.FreeToolsPage })));
 const ContactPage = lazy(() => import('./pages/ContactPage').then(module => ({ default: module.ContactPage })));
 const ClientPortalPage = lazy(() => import('./pages/ClientPortalPage').then(module => ({ default: module.ClientPortalPage })));
 const AdminPage = lazy(() => import('./pages/AdminPage').then(module => ({ default: module.AdminPage })));
@@ -136,6 +138,9 @@ export default function App() {
                     <Route path="/demo" element={<DemoPage />} />
                     <Route path="/partners" element={<CompanyProgrammesPage mode="partners" />} />
                     <Route path="/academy" element={<CompanyProgrammesPage mode="academy" />} />
+                    <Route path="/product-interest" element={<GrowthApplicationPage />} />
+                    <Route path="/partners/apply" element={<GrowthApplicationPage partner />} />
+                    <Route path="/tools" element={<FreeToolsPage />} />
                     <Route path="/contact" element={<ContactPage />} />
                     <Route path="/portal" element={<ClientPortalPage />} />
                     <Route path="/admin" element={<AdminPage />} />

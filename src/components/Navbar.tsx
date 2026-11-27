@@ -327,7 +327,7 @@ export function Navbar() {
                     DayTech Solutions
                   </p>
                   <h3 className="font-display text-lg font-bold text-[#0B1120] dark:text-white mt-1">
-                    Technology. Innovation. Impact.
+                    Technology that moves business forward.
                   </h3>
                   <p className="text-sm text-slate-600 dark:text-slate-400 mt-2 leading-relaxed">
                     A Uganda-based technology partner building reliable software and digital infrastructure for Africa and global clients.

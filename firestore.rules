@@ -318,6 +318,10 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Growth registrations and distributed quota counters are server-only.
+    match /growthLeads/{leadId} { allow read, write: if false; }
+    match /growthRateLimits/{bucketId} { allow read, write: if false; }
+
     // Quotation enquiries
     match /enquiries/{enquiryId} {
       allow get: if isValidId(enquiryId) && (

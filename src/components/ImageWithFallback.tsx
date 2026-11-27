@@ -4,6 +4,8 @@ import { Layers } from 'lucide-react';
 interface ImageWithFallbackProps {
   src: string;
   alt: string;
+  srcSet?: string;
+  sizes?: string;
   className?: string;
   fallbackLabel?: string;
   priority?: boolean;
@@ -12,6 +14,8 @@ interface ImageWithFallbackProps {
 export function ImageWithFallback({
   src,
   alt,
+  srcSet,
+  sizes,
   className = '',
   fallbackLabel,
   priority = false,
@@ -34,6 +38,8 @@ export function ImageWithFallback({
   return (
     <img
       src={src}
+      srcSet={srcSet}
+      sizes={sizes}
       alt={alt}
       referrerPolicy="no-referrer"
       loading={priority ? 'eager' : 'lazy'}

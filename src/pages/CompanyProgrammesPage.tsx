@@ -23,11 +23,19 @@ export function CompanyProgrammesPage({ mode }: { mode: 'partners' | 'academy' }
       ) : (
         <>
           <h2 className="mt-8 text-xl font-semibold">Learning materials</h2>
-          <p className="mt-2 max-w-2xl">Free product guides, troubleshooting tutorials and learning paths are planned. Browse existing articles while the course catalogue is being prepared.</p>
+          <p className="mt-2 max-w-2xl">Free product guides and courses are planned. The existing technical articles are available now.</p>
+          <ul className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {['Product guides', 'Free tutorials', 'IT infrastructure', 'Networking', 'Cybersecurity', 'Software development', 'Business digitalisation', 'Artificial intelligence'].map(topic => (
+              <li key={topic} className="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
+                <h3 className="font-semibold">{topic}</h3>
+                <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Planned learning track</p>
+              </li>
+            ))}
+          </ul>
         </>
       )}
       <Link
-        to={partners ? '/contact?topic=partners' : '/insights'}
+        to={partners ? '/partners/apply' : '/insights'}
         className="mt-8 inline-flex rounded-lg bg-[#2563EB] px-5 py-3 text-sm font-semibold text-white"
       >
         {partners ? 'Register partner interest' : 'Browse technical articles'}

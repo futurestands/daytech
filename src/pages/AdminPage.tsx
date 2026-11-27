@@ -1,3 +1,4 @@
+import { GrowthLeadPanel } from '../components/GrowthLeadPanel';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   CalendarClock,
@@ -63,6 +64,7 @@ type AdminTab =
   | 'enquiries'
   | 'quotations'
   | 'demos'
+  | 'growth'
   | 'contacts'
   | 'content'
   | 'operations'
@@ -187,6 +189,7 @@ function AdminSession() {
   const canSupport = isAdmin || role === 'support_officer';
   const canManageProjects = isAdmin || role === 'project_manager';
   const allowedTabs: AdminTab[] = ['dashboard'];
+  if (canSell) allowedTabs.push('growth');
   if (canSell || serverUnlocked) allowedTabs.push('enquiries', 'quotations', 'demos');
   if (canSell || canSupport || serverUnlocked) allowedTabs.push('contacts');
   if (canSupport || canManageProjects) allowedTabs.push('operations');
@@ -1141,6 +1144,7 @@ function AdminSession() {
                 { id: 'enquiries', label: 'Leads & Enquiries', icon: ClipboardList },
                 { id: 'quotations', label: 'Quotations & PDF', icon: FileText },
                 { id: 'demos', label: 'Demo Bookings', icon: CalendarClock },
+                { id: 'growth', label: 'Product Interest & Partners', icon: Users },
                 { id: 'contacts', label: 'Contact Messages', icon: Mail },
                 { id: 'operations', label: 'Projects & Support', icon: FolderKanban },
                 { id: 'content', label: 'Products & Content', icon: FileSpreadsheet },
@@ -1986,6 +1990,8 @@ function AdminSession() {
                 )}
               </div>
             )}
+
+            {activeTab === 'growth' && <GrowthLeadPanel demos={collectionStatus.demoBookings === 'ready' ? fsDemos : undefined} />}
 
             {activeTab === 'contacts' && (
               <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#020617] overflow-hidden">

@@ -41,7 +41,7 @@ export function ProductDetailPage() {
     : product.status === 'In Development' ? 'Request a preview' : 'Request a demo';
   const previewUrl = product.status === 'In Development' || available
     ? `/demo?product=${product.slug}`
-    : `/contact?product=${product.slug}`;
+    : `/product-interest?product=${product.slug}`;
   const launchUrl = available && product.externalAppUrl && URL.canParse(product.externalAppUrl)
     && new URL(product.externalAppUrl).protocol === 'https:' && product.slug !== 'waterops'
     ? product.externalAppUrl : null;

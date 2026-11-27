@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { assertFails, assertSucceeds, initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
 import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
-import { afterAll, beforeAll, describe, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 let env: RulesTestEnvironment;
 
@@ -143,4 +143,50 @@ describe('guest contact and demo persistence', () => {
       });
     }
   });
+});
+
+describe('dedicated growth intake', () => {
+  it('persists one private record across concurrent retries and restricts staff review', async () => {
+    const { createApiApp } = await import('../server/app');
+    const app = createApiApp({
+      env: { NODE_ENV: 'test', FIRESTORE_EMULATOR_HOST: process.env.FIRESTORE_EMULATOR_HOST, GROWTH_HASH_SECRET: 'test-only-key-not-used-outside-the-emulator' },
+      adminAuthDeps: {
+        verifyToken: async uid => ({ uid, emailVerified: true }),
+        fetchUser: async (_token, uid) => ({ uid, role: uid === 'admin' ? 'admin' : 'client', active: true }),
+      },
+    });
+    const server = await new Promise<ReturnType<typeof app.listen>>(resolve => {
+      const instance = app.listen(0, '127.0.0.1', () => resolve(instance));
+    });
+    try {
+      const address = server.address();
+      if (!address || typeof address === 'string') throw new Error('Missing test address.');
+      const origin = 'http://127.0.0.1:' + address.port;
+      const application = { name: 'Example Applicant', organisation: 'Example School', email: 'school@example.invalid', category: 'Education',
+        product: 'schools', challenge: 'Consolidate fee records.', pilot: true, consent: true };
+      const submit = (body: object) => fetch(origin + '/api/growth/interest', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+      });
+      expect((await submit({ ...application, consent: false })).status).toBe(400);
+      const responses = await Promise.all([submit(application), submit(application), submit(application)]);
+      expect(responses.map(result => result.status).sort()).toEqual([200, 200, 201]);
+      expect((await fetch(origin + '/api/admin/growth')).status).toBe(401);
+      expect((await fetch(origin + '/api/admin/growth', { headers: { Authorization: 'Bearer client' } })).status).toBe(403);
+      const headers = { Authorization: 'Bearer admin', 'Content-Type': 'application/json' };
+      const response = await fetch(origin + '/api/admin/growth', { headers });
+      expect(response.status).toBe(200);
+      const { rows } = await response.json();
+      expect(rows).toHaveLength(1);
+      const row = rows[0];
+      await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), 'growthLeads', row.id)));
+      await assertFails(getDoc(doc(caller('admin'), 'growthLeads', row.id)));
+      const update = () => fetch(origin + '/api/admin/growth/' + row.id, {
+        method: 'PATCH', headers, body: JSON.stringify({ version: row.version, status: 'Qualified', notes: 'Verified test lead', assignedTo: '' }),
+      });
+      expect((await update()).status).toBe(204);
+      expect((await update()).status).toBe(409);
+    } finally {
+      await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+    }
+  }, 25_000);
 });
