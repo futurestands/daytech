@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { SEOHead } from '../components/SEOHead';
-import { ImageWithFallback } from '../components/ImageWithFallback';
+import { ArchitectureIllustration } from '../components/ArchitectureIllustration';
 
 const CORE_VALUES = [
   {
@@ -54,12 +54,7 @@ export function AboutPage() {
 
           <div className="mt-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
             <div className="lg:col-span-7 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 min-h-[280px]">
-              <ImageWithFallback
-                src="/src/assets/images/about_kampala_workspace_1795598739080.jpg"
-                alt="DayTech Solutions engineering collaboration studio"
-                className="w-full h-full lg:h-full object-cover"
-                fallbackLabel="DayTech Engineering Studio"
-              />
+              <ArchitectureIllustration variant="engineering" />
             </div>
             <div className="lg:col-span-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-[#F8FAFC] dark:bg-[#0B1120] p-7 flex flex-col justify-between">
               <div className="space-y-6">
@@ -151,12 +146,7 @@ export function AboutPage() {
             </div>
           </div>
           <div className="lg:col-span-5 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
-            <ImageWithFallback
-              src="/src/assets/images/infra_network_rack_1795598739618.jpg"
-              alt="Structured enterprise server and network infrastructure"
-              className="w-full h-64 object-cover"
-              fallbackLabel="Enterprise Network Infrastructure"
-            />
+            <ArchitectureIllustration variant="infrastructure" />
           </div>
         </div>
       </section>

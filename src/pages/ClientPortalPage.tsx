@@ -1,3 +1,4 @@
+import { WorkspaceNotice, WorkspaceSectionButton } from '../components/WorkspaceUi';
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import {
@@ -111,6 +112,7 @@ function ClientPortalSession() {
     : null;
 
   const [myEnquiries, setMyEnquiries] = useState<EnquiryRecord[]>([]);
+  const [recordStatus, setRecordStatus] = useState<Partial<Record<'quotations' | 'projects' | 'supportTickets', 'ready' | 'error'>>>({});
   const [myQuotations, setMyQuotations] = useState<QuotationRecord[]>([]);
   const [myDemos, setMyDemos] = useState<DemoBookingRecord[]>([]);
   const [myProjects, setMyProjects] = useState<ClientProjectRecord[]>([]);
@@ -228,8 +230,9 @@ function ClientPortalSession() {
         });
         rows.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
         setMyProjects(rows);
+        setRecordStatus(current => ({ ...current, projects: 'ready' }));
       },
-      (err) => handleFirestoreError(err, OperationType.LIST, 'projects')
+      () => setRecordStatus(current => ({ ...current, projects: 'error' }))
     );
 
     const unsubTickets = onSnapshot(
@@ -252,8 +255,9 @@ function ClientPortalSession() {
         });
         rows.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
         setMyTickets(rows);
+        setRecordStatus(current => ({ ...current, supportTickets: 'ready' }));
       },
-      (err) => handleFirestoreError(err, OperationType.LIST, 'supportTickets')
+      () => setRecordStatus(current => ({ ...current, supportTickets: 'error' }))
     );
 
     const unsubQuotations = onSnapshot(
@@ -293,8 +297,9 @@ function ClientPortalSession() {
         });
         rows.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
         setMyQuotations(rows);
+        setRecordStatus(current => ({ ...current, quotations: 'ready' }));
       },
-      (err) => handleFirestoreError(err, OperationType.LIST, 'quotations')
+      () => setRecordStatus(current => ({ ...current, quotations: 'error' }))
     );
 
     return () => {
@@ -509,6 +514,7 @@ function ClientPortalSession() {
       <div className="print:hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Sidebar Navigation */}
         <aside className="lg:col-span-3 space-y-2">
+          <nav aria-label="Customer portal sections" className="grid grid-cols-2 gap-2 lg:grid-cols-1">
           {(
             [
               { id: 'lookup', label: 'Enquiries & Demo Tracker', icon: Search },
@@ -522,21 +528,12 @@ function ClientPortalSession() {
             const Icon = item.icon;
             const active = activeTab === item.id;
             return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors text-left ${
-                  active
-                    ? 'bg-[#2563EB] text-white'
-                    : 'bg-white dark:bg-[#020617] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900'
-                }`}
-              >
-                <Icon className="w-4 h-4 shrink-0" />
-                <span>{item.label}</span>
-              </button>
+              <WorkspaceSectionButton key={item.id} active={active} label={item.label} onSelect={() => setActiveTab(item.id)}>
+                <Icon className="w-4 h-4 shrink-0" aria-hidden="true" />
+              </WorkspaceSectionButton>
             );
           })}
+          </nav>
 
           <div className="mt-6 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#020617] p-4 text-xs text-slate-600 dark:text-slate-400 space-y-2">
             <div className="flex items-center gap-2 font-semibold text-[#0B1120] dark:text-white">
@@ -760,19 +757,19 @@ function ClientPortalSession() {
                 )}
               </div>
 
-              {quoteActionNotice && (
-                <div className="p-3.5 rounded-lg border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/30 text-xs text-[#0B1120] dark:text-blue-200">
-                  {quoteActionNotice}
-                </div>
-              )}
+              {quoteActionNotice && <WorkspaceNotice>{quoteActionNotice}</WorkspaceNotice>}
 
               {!user ? (
                 <p className="text-sm text-slate-600 dark:text-slate-300">
                   Sign in with your verified Google account to view formal quotations issued to your organisation, or look up a <span className="font-mono">QTE-...</span> reference in Enquiries &amp; Demo Tracker.
                 </p>
+              ) : user.emailVerified && recordStatus.quotations === 'error' ? (
+                <WorkspaceNotice error>Could not load quotations. Refresh the page to try again.</WorkspaceNotice>
+              ) : user.emailVerified && !recordStatus.quotations ? (
+                <p role="status" className="text-sm text-slate-600 dark:text-slate-300">Loading quotations…</p>
               ) : myQuotations.length === 0 ? (
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  No formal quotations are currently linked to your account UID ({user.uid}).
+                  Quotations issued to your account will appear here.
                 </p>
               ) : (
                 <div className="space-y-4">
@@ -858,9 +855,13 @@ function ClientPortalSession() {
                 <p className="text-sm text-slate-600 dark:text-slate-300">
                   Sign in with your verified Google account to view projects assigned to your organisation.
                 </p>
+              ) : user.emailVerified && recordStatus.projects === 'error' ? (
+                <WorkspaceNotice error>Could not load projects. Refresh the page to try again.</WorkspaceNotice>
+              ) : user.emailVerified && !recordStatus.projects ? (
+                <p role="status" className="text-sm text-slate-600 dark:text-slate-300">Loading projects…</p>
               ) : myProjects.length === 0 ? (
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  No active delivery projects are currently assigned to your account ({user.uid}).
+                  Projects assigned to your account will appear here.
                 </p>
               ) : (
                 <div className="space-y-4">
@@ -1044,7 +1045,11 @@ function ClientPortalSession() {
                   <h3 className="font-display text-lg font-bold text-[#0B1120] dark:text-white">
                     Your Support Tickets ({myTickets.length})
                   </h3>
-                  {myTickets.length === 0 ? (
+                  {user?.emailVerified && recordStatus.supportTickets === 'error' ? (
+                    <WorkspaceNotice error>Could not load your support tickets. Refresh the page to try again.</WorkspaceNotice>
+                  ) : user?.emailVerified && !recordStatus.supportTickets ? (
+                    <p role="status" className="text-sm text-slate-600 dark:text-slate-300">Loading support tickets…</p>
+                  ) : myTickets.length === 0 ? (
                     <p className="text-sm text-slate-500 dark:text-slate-400">
                       No support tickets created under your account yet.
                     </p>

@@ -1,3 +1,5 @@
+import { AdminActivityChart } from '../components/AdminActivityChart';
+import { WorkspaceNotice, WorkspaceSectionButton } from '../components/WorkspaceUi';
 import { ProductPublishingPanel } from '../components/ProductPublishingPanel';
 import { GrowthLeadPanel } from '../components/GrowthLeadPanel';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -14,6 +16,7 @@ import {
   LogIn,
   LogOut,
   Mail,
+  PanelLeft,
   Plus,
   Printer,
   Settings,
@@ -22,6 +25,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
+import './adminNavigation.css';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { SEOHead } from '../components/SEOHead';
 import { QuotationDocument } from '../components/QuotationDocument';
@@ -105,6 +109,7 @@ function AuthenticatedAdmin() {
 }
 
 function AdminSession() {
+  const [navigationCollapsed, setNavigationCollapsed] = useState(false);
   const { publicConfig } = useAppContext();
   const {
     firebaseReady,
@@ -1130,10 +1135,21 @@ function AdminSession() {
           </div>
         </div>
       ) : (
-        <div className="print:hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="admin-workspace print:hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 grid gap-6" data-navigation-collapsed={navigationCollapsed}>
           {/* Sidebar */}
-          <aside className="lg:col-span-3 space-y-1.5">
-            <div className="px-3 py-2 mb-2">
+          <aside className="min-w-0 space-y-1.5">
+            <button
+              type="button"
+              aria-controls="admin-navigation"
+              aria-expanded={!navigationCollapsed}
+              aria-label={navigationCollapsed ? 'Expand admin navigation' : 'Collapse admin navigation'}
+              onClick={() => setNavigationCollapsed(collapsed => !collapsed)}
+              className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg px-3 text-sm font-medium text-slate-700 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+            >
+              <PanelLeft className="w-4 h-4 shrink-0" aria-hidden="true" />
+              <span className="admin-navigation-label">Navigation</span>
+            </button>
+            <div className="admin-workspace-identity px-3 py-2 mb-2">
               <p className="text-xs font-semibold text-[#2563EB] dark:text-[#06B6D4]">
                 Operations Console (/admin)
               </p>
@@ -1149,14 +1165,16 @@ function AdminSession() {
                 <button
                   type="button"
                   onClick={signOutUser}
-                  className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-red-600"
+                  className="mt-2 inline-flex min-h-11 items-center gap-1 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-red-600"
+                  aria-label="Sign out"
                 >
                   <LogOut className="w-3.5 h-3.5" />
-                  <span>Sign Out ({user.email})</span>
+                  <span className="admin-navigation-label break-all">Sign Out ({user.email})</span>
                 </button>
               )}
             </div>
 
+            <nav id="admin-navigation" aria-label="Admin sections" className="space-y-1.5">
             {(
               [
                 { id: 'dashboard', label: 'Dashboard Overview', icon: LayoutDashboard },
@@ -1174,31 +1192,19 @@ function AdminSession() {
               const Icon = tab.icon;
               const active = activeTab === tab.id;
               return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-colors text-left ${
-                    active
-                      ? 'bg-[#2563EB] text-white'
-                      : 'text-slate-700 dark:text-slate-300 hover:bg-white dark:hover:bg-[#020617]'
-                  }`}
-                >
-                  <Icon className="w-4 h-4 shrink-0" />
-                  <span>{tab.label}</span>
-                </button>
+                <WorkspaceSectionButton key={tab.id} active={active} label={tab.label} onSelect={() => setActiveTab(tab.id)}>
+                  <Icon className="w-4 h-4 shrink-0" aria-hidden="true" />
+                </WorkspaceSectionButton>
               );
             })}
+            </nav>
           </aside>
 
           {/* Main Admin Viewport */}
-          <main className="lg:col-span-9 space-y-6">
-            {actionNotice && (
-              <div className="p-3.5 rounded-lg border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/30 text-xs text-[#0B1120] dark:text-blue-200">
-                {actionNotice}
-              </div>
-            )}
+          <main className="min-w-0 space-y-6">
+            {actionNotice && <WorkspaceNotice>{actionNotice}</WorkspaceNotice>}
 
+            <div className="admin-section space-y-6" key={activeTab}>
             {activeTab === 'dashboard' && (
               <div className="space-y-6">
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1225,6 +1231,12 @@ function AdminSession() {
                     </div>
                   ))}
                 </div>
+
+                {(canSell || serverUnlocked) && <AdminActivityChart counts={[
+                  { label: 'Enquiries', section: 'enquiries', value: activeEnquiries.length },
+                  { label: 'Quotations', section: 'quotations', value: activeQuotations.length },
+                  { label: 'Demo requests', section: 'demoBookings', value: activeDemos.length },
+                ].filter(item => serverUnlocked || collectionStatus[item.section] === 'ready')} />}
 
                 <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#020617] p-6">
                   <h2 className="font-display text-lg font-bold text-[#0B1120] dark:text-white">
@@ -2409,6 +2421,7 @@ function AdminSession() {
                 </dl>
               </div>
             )}
+            </div>
           </main>
         </div>
       )}

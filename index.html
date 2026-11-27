@@ -30,15 +30,6 @@
     />
     <script>
       (function () {
-        if (window.location.pathname === '/') {
-          var hero = document.createElement('link');
-          hero.rel = 'preload';
-          hero.as = 'image';
-          hero.imageSrcset = '/src/assets/images/hero-workspace-480.webp 480w, /src/assets/images/hero-workspace-900.webp 900w, /src/assets/images/hero-workspace-1320.webp 1320w';
-          hero.imageSizes = '(min-width: 1280px) 620px, (min-width: 1024px) 50vw, 100vw';
-          hero.fetchPriority = 'high';
-          document.head.appendChild(hero);
-        }
         try {
           var stored = localStorage.getItem('daytech-theme');
           var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;

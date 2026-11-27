@@ -127,6 +127,11 @@ export function Footer() {
                     Terms of Service
                   </Link>
                 </li>
+                <li>
+                  <a href="/third-party-notices.txt" className="hover:text-[#2563EB] dark:hover:text-[#06B6D4]">
+                    Third-party notices
+                  </a>
+                </li>
               </ul>
             </div>
           </div>

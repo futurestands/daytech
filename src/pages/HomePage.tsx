@@ -14,7 +14,7 @@ import {
 import { SEOHead } from '../components/SEOHead';
 import { EcosystemVisual } from '../components/EcosystemVisual';
 import { ProductDashboardPreview } from '../components/ProductDashboardPreview';
-import { ImageWithFallback } from '../components/ImageWithFallback';
+import { ArchitectureIllustration } from '../components/ArchitectureIllustration';
 import { SERVICES } from '../data/services';
 import { PRODUCTS } from '../data/products';
 import { safeProductStatus, usePublicProductStatuses } from '../lib/publicProductStatus';
@@ -140,16 +140,8 @@ export function HomePage() {
             </Link>
           </div>
           <figure className="overflow-hidden rounded-2xl border border-slate-600 bg-[#111F33]">
-            <ImageWithFallback
-              src="/src/assets/images/hero-workspace-900.webp"
-              srcSet="/src/assets/images/hero-workspace-480.webp 480w, /src/assets/images/hero-workspace-900.webp 900w, /src/assets/images/hero-workspace-1320.webp 1320w"
-              sizes="(min-width: 1280px) 620px, (min-width: 1024px) 50vw, 100vw"
-              alt="DayTech enterprise technology operations and engineering architecture"
-              className="aspect-[4/3] w-full object-cover sm:aspect-[16/10] lg:aspect-[5/4]"
-              fallbackLabel="Illustrative technology workspace"
-              priority
-            />
-            <figcaption className="px-4 py-2 text-xs text-slate-200">Illustrative technology workspace</figcaption>
+            <ArchitectureIllustration variant="platform" />
+            <figcaption className="px-4 py-2 text-xs text-slate-200">Illustrative systems diagram</figcaption>
           </figure>
         </div>
       </section>
@@ -182,12 +174,7 @@ export function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-stretch">
             <div className="lg:col-span-5 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 min-h-[260px]">
-              <ImageWithFallback
-                src="/src/assets/images/about_kampala_workspace_1795598739080.jpg"
-                alt="Illustrative photograph of a team collaborating in a technology workspace"
-                className="w-full h-full lg:h-full object-cover"
-                fallbackLabel="DayTech Engineering Studio"
-              />
+              <ArchitectureIllustration variant="engineering" />
             </div>
 
             <div className="lg:col-span-7 flex flex-col justify-center">

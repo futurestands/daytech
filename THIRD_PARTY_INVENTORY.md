@@ -733,3 +733,10 @@ Record contributors and confirmed assignments for original DayTech code. Retain 
 ## Increment 4 distribution review
 
 The frozen integration lockfile produces 556 SBOM components, 445 with installed-manifest licences. Prioritise the distributed browser bundles and server runtime, including React, the Firebase SDK, Express and Google authentication dependencies. Use the SBOM relationship and platform fields to distinguish tooling and alternate platform binaries. The old Vercel builder and Edge Runtime tree and the Motion tree were removed. Review Lightning CSS MPL obligations only for the binaries actually distributed, and preserve caniuse-lite attribution wherever the data is redistributed. Distribution notice collection and explicit photography rights evidence remain release gates.
+## Increment 5 distribution review
+
+The release candidate excludes the photographs and responsive derivatives listed above from its production build. The repository retains their originals for provenance review. The homepage and About page use a DayTech system diagram built in React and CSS with existing Lucide icons. Record contributor rights through the normal release review.
+
+Run `node --import tsx scripts/generate-runtime-notices.ts` after a frozen install to refresh the published notice file. The script collects upstream licence and notice files from installed browser and server runtime dependency roots. It reports package manifests that lack an installed notice file for follow-up. Optional branches of the SDK may appear in the runtime inventory even when tree-shaken from the built client. Conditional licences and remote font rights require review against the exact distribution.
+
+Motion for React is MIT-licensed and confined to the separate prototype branch. The candidate uses CSS for workplace navigation and does not add runtime dependencies.
