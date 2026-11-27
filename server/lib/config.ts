@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import appletConfig from '../../firebase-applet-config.json';
+import appletConfig from '../../firebase-applet-config.json' with { type: 'json' };
 import { CurrencyCode } from '../../src/types/domain';
 
 export function parseBooleanFlag(value: unknown, fallback = false): boolean {

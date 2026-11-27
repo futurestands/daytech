@@ -302,6 +302,8 @@ export function Navbar() {
                     <Link to="/insights" className="text-sm font-medium text-slate-700 dark:text-slate-300 hover:underline">
                       Insights &amp; Technical Briefs →
                     </Link>
+                    <Link to="/academy" className="text-sm font-medium hover:underline">DayTech Academy</Link>
+                    <Link to="/partners" className="text-sm font-medium hover:underline">DayTech Partners</Link>
                   </div>
                 </div>
                 <div className="col-span-8 grid grid-cols-3 gap-2.5">
@@ -325,7 +327,7 @@ export function Navbar() {
                     DayTech Solutions
                   </p>
                   <h3 className="font-display text-lg font-bold text-[#0B1120] dark:text-white mt-1">
-                    Technology. Innovation. Impact.
+                    Technology that moves business forward.
                   </h3>
                   <p className="text-sm text-slate-600 dark:text-slate-400 mt-2 leading-relaxed">
                     A Uganda-based technology partner building reliable software and digital infrastructure for Africa and global clients.
@@ -383,6 +385,8 @@ export function Navbar() {
             >
               Insights
             </Link>
+            <Link to="/academy" className="block px-3 py-2 text-sm font-medium">Academy</Link>
+            <Link to="/partners" className="block px-3 py-2 text-sm font-medium">Partners</Link>
             <Link
               to="/contact"
               className="px-3 py-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 text-sm font-medium text-[#0B1120] dark:text-white"

@@ -3,23 +3,21 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, Search } from 'lucide-react';
 import { SEOHead } from '../components/SEOHead';
 import { PRODUCTS } from '../data/products';
-import { ProductStatus } from '../types/domain';
+import { safeProductStatus, usePublicProductStatuses } from '../lib/publicProductStatus';
+import { PRODUCT_STATUSES, ProductStatus } from '../types/domain';
 
 const STATUS_FILTERS: ('All' | ProductStatus)[] = [
   'All',
-  'Under Development',
-  'Coming Soon',
-  'Beta',
-  'Available',
+  ...PRODUCT_STATUSES,
 ];
 
 export function ProductsPage() {
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'All' | ProductStatus>('All');
+  const statuses = usePublicProductStatuses('all');
 
   const filtered = useMemo(() => {
-    return PRODUCTS.filter((prod) => {
-      if (prod.status === 'Archived') return false;
+    return PRODUCTS.map(product => ({ ...product, status: statuses[product.slug] ?? safeProductStatus(product.status) })).filter((prod) => {
       const matchesStatus = statusFilter === 'All' || prod.status === statusFilter;
       const q = query.trim().toLowerCase();
       const matchesQuery =
@@ -30,7 +28,7 @@ export function ProductsPage() {
         prod.capabilities.some((c) => c.toLowerCase().includes(q));
       return matchesStatus && matchesQuery;
     });
-  }, [query, statusFilter]);
+  }, [query, statusFilter, statuses]);
 
   return (
     <div>
@@ -49,7 +47,7 @@ export function ProductsPage() {
               Modular software platforms engineered for independent deployment.
             </h1>
             <p className="mt-4 text-base sm:text-lg text-slate-600 dark:text-slate-300 leading-relaxed">
-              Each DayTech product is architected to run as an independent application in its own deployment environment. Products marked as Under Development or Coming Soon are actively being built and accept early pilot or demonstration requests.
+              Each DayTech product is architected to run as an independent application in its own deployment environment. Lifecycle labels describe each product’s current public status. Planned features and illustrative previews are subject to validation.
             </p>
           </div>
 

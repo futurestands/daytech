@@ -33,3 +33,32 @@
 - [x] ESLint Firestore security rules audit, TypeScript check, and Vite production build passing
 - [ ] Push code to GitHub (`futurestands/daytechsolutions-`) from an authenticated git session / AI Studio GitHub export and deploy to Vercel
 - [ ] Review and harden `firestore.rules` before broad public launch
+
+## Milestone 2 — Functional integration
+
+- [x] Route splitting and deferred map and voice modules.
+- [x] Prevent concurrent repeated submissions in the three acquisition forms and remove duplicate local mirroring.
+- [x] Reset private portal UI and discard stale auth profile responses on account changes.
+- [ ] Durable acquisition idempotency, controlled guest linking, and abuse controls.
+- [ ] Trusted financial persistence, quotation revision history, revocable quotation links, and end-to-end conversion.
+- [x] Role-based navigation and Firestore subscription permissions, with loading and error states for dashboard sales metrics.
+- [x] Local emulator acquisition and quotation decision tests, production-preview smoke tests and baseline CI workflow.
+- [ ] Verify fully integrated customer and staff workflows in an approved preview.
+
+## Strategic Increment 2 — commercial landing and acquisition
+
+- [x] Photography-led homepage, POS default preview, HotelOS and Schools, ecosystem navigation and dedicated applications.
+- [x] Private persistent growth intake, distributed write quota, duplicate protection, sales review and current-stage analytics.
+- [x] Invoice, profit and QR browser tools, Academy tracks and v1 integration design.
+- [ ] Build protected product drafts, evidence-based public publishing and approved pricing and origins.
+- [ ] Verify provisioned preview, real login, independent asset rights, and long-term reporting, audit retention and pagination.
+
+## Strategic Increment 3 — commercial readiness
+
+- [x] Draft, review, explicit super administrator approval, atomic publication, revision and retirement.
+- [x] Private evidence and pricing proposals, approved launch origin and pricing records, and public product-detail projections.
+- [x] Assigned-sales access, admin export audit, pagination, transition guards, accepted-attempt quota and current-cohort commercial analytics.
+- [x] Public-route Firebase deferral, asset provenance register, CycloneDX and CI secret and licence checks.
+- [ ] Owner-approved isolated preview with IAM, indexes and rate-limit source verification.
+- [ ] Monitor abuse and cohort reporting, resolve provenance and legal reviews, and approve a retention and suppression schedule.
+Use [Increment 4 security and preview](INCREMENT_4_READINESS.md) to verify dependency findings, protected preview configuration and retention sign-off before commercial rollout.

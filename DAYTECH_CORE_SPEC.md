@@ -1,0 +1,47 @@
+# DayTech platform foundation
+
+DayTech Products owns the public product catalogue. Enterprise, Cloud and AI describe implementation and service lines. Academy owns published learning material. Partners collects expressions of interest through the contact workflow while approvals and financial workflows are designed. Labs may publish approved summaries. Keep unpublished experiments, proprietary source and operational research private.
+
+## Product ownership and publication
+
+Retain eleven stable slugs. Internal priority 1 is Inventory, HotelOS and Schools. Priority 2 is HR, Rentals, CRM and Finance. Priority 3 is SACCO, Farm, WaterOps and Meet. These are proposed commercial priorities for an authorised workflow, with no implied delivery dates. WaterOps requires written IP and employment clearance before release.
+
+Use public release projections separate from private operational records. Public projections carry version, approved URLs, verified capabilities, approved prices and publication dates. Internal records carry owner, priority, unpublished drafts, review evidence and release notes. A staff author proposes a transition, a publisher records evidence and approves release, and the backend atomically updates the public projection and immutable audit record. Deny public access to private drafts and validate destinations against approved HTTPS origins. A public release must not follow merely from changing a lifecycle label.
+
+## DayTech Core boundaries
+
+Keep the corporate React platform responsible for discovery, acquisition, support, quotations and verified product links. Deploy commercial products independently with their own release pipelines, data stores and service identities. Exchange narrowly scoped identities and entitlements through a future versioned API. Treat tenant identity as server-derived. Product services check tenant membership and entitlements independently. Never use website publication state as a permission grant.
+
+Build shared authentication, organisation membership, onboarding, tenant-scoped RBAC, audit events and UI primitives first. Add notifications, reporting and integration contracts after tenant isolation tests. Offline sync needs explicit record ownership, conflict resolution and revocation behaviour.
+
+## Licence Manager design
+
+Model plans, entitlement versions, customer organisations, grants, subscription events and deployment activations separately. Future grants can represent trials, recurring subscriptions, enterprise, white-label and on-premise licences. Bind limits to authenticated tenants and apply them on the product server. Webhook ingestion requires independent signature verification, idempotency and reconciliation. Offline verification should use signed, expiring grants with key rotation and bounded grace periods. Cancellation must preserve a scoped path to export entitled customer data. Real billing and licence enforcement require separate approval.
+
+## IP and launch controls
+
+Maintain a dependency and licence inventory, attribution notices, an SBOM for each release, and provenance for original source, contributed work and assets. Evaluate and document licence compatibility rather than assuming any particular dependency is cleared. A public repository lets third parties inspect and copy the published material, subject to applicable rights and licence terms. Keep original commercial modules and confidential release tools in separately authorised private repositories. Do not change repository visibility or history without approval.
+
+## Implemented increment
+
+Public lifecycle labels, Schools and Rentals routes, product-specific interest via the existing contact desk, partner interest and Academy information are in this branch. Dedicated consent-aware registration, lead assignment and analytics, admin publishing and pricing, customer entitlements, free tools and a full homepage redesign remain future implementation. Academy delivery remains Milestone 4.
+
+## Integration contract v1 (design)
+
+| Contract | Fields | Verification |
+| --- | --- | --- |
+| Organisation identity | `version`, `organisationId`, `subject`, `productId`, `membershipRole`, `issuer`, `audience`, `issuedAt`, `expiresAt` | Audience and issuer must match the receiving product. Resolve membership and tenant server-side before issuing a short-lived grant. |
+| Subscription and entitlements | `version`, `organisationId`, `productId`, `subscriptionState`, `entitlementRevision`, `features`, `effectiveAt`, `validUntil` | Products independently reject stale, expired, revoked or wrong-tenant grants. Validate an authenticated server event and deduplicate by event ID. |
+| Application handoff | `version`, `productId`, `organisationId`, `approvedOrigin`, `returnState`, `expiresAt` | Bind a single-use handoff code to the destination and organisation. Open URLs only from the per-product approved HTTPS origin registry. Never include bearer tokens in URLs. |
+
+Unknown major versions fail closed. Changes to optional fields can remain backward compatible within v1. Product teams retain independent deployment and release evidence. Subscription, billing and licence enforcement are design-only.
+
+## Proposed pricing structure
+
+Starter, Professional and Enterprise are packaging proposals. A plan should carry currency, billing cadence (monthly, annual, school term or custom), recurring price, implementation charge, service limits, support scope and approval state. Separate the proposal from a published price with effective dates and approval evidence. Keep existing indicative UGX, USD and KES amounts as recorded in PRICING_RECONCILIATION.md until an authorised commercial review approves replacements. No payment route or checkout is enabled.
+
+## Protected publishing implemented in Increment 3
+
+Content managers and administrators can create or revise private drafts and submit them for review. Super administrators approve the reviewed version and publish it. Saving edits returns the record to Draft and drops approval ownership. Approval creates separate immutable-by-client evidence, approved-destination and approved-pricing records. Availability requires explicit evidence, a release version, verified capabilities and an approved HTTPS origin. WaterOps cannot publish a pricing proposal or advance to alpha, beta or availability through this workflow. The publish operation atomically changes the reviewed record, its public projection and the audit record with Firestore preconditions. Retirement uses the same review path and removes launch access. Retired slugs still resolve.
+
+Price proposals stay private. Approved Starter, Professional and Enterprise prices carry currency, cadence, implementation charge, support and optional services, and effective date. The product-detail view keeps existing indicative pricing if no approved price is effective. The catalogue and homepage still show catalogue defaults for product cards. Founder planning targets and proposal amounts stay outside the public repository and are not published offers.

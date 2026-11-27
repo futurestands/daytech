@@ -3,20 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>DayTech Solutions – Technology. Innovation. Impact.</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>DayTech Solutions – Technology that moves business forward.</title>
     <meta
       name="description"
       content="DayTech Solutions delivers intelligent software, reliable IT infrastructure, cloud computing, and digital transformation across Uganda and Africa."
     />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="DayTech Solutions" />
-    <meta property="og:title" content="DayTech Solutions – Technology. Innovation. Impact." />
+    <meta property="og:title" content="DayTech Solutions – Technology that moves business forward." />
     <meta
       property="og:description"
       content="DayTech Solutions delivers intelligent software, reliable IT infrastructure, cloud computing, and digital transformation across Uganda and Africa."
     />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="DayTech Solutions – Technology. Innovation. Impact." />
+    <meta name="twitter:title" content="DayTech Solutions – Technology that moves business forward." />
     <meta
       name="twitter:description"
       content="DayTech Solutions delivers intelligent software, reliable IT infrastructure, cloud computing, and digital transformation across Uganda and Africa."
@@ -29,6 +30,15 @@
     />
     <script>
       (function () {
+        if (window.location.pathname === '/') {
+          var hero = document.createElement('link');
+          hero.rel = 'preload';
+          hero.as = 'image';
+          hero.imageSrcset = '/src/assets/images/hero-workspace-480.webp 480w, /src/assets/images/hero-workspace-900.webp 900w, /src/assets/images/hero-workspace-1320.webp 1320w';
+          hero.imageSizes = '(min-width: 1280px) 620px, (min-width: 1024px) 50vw, 100vw';
+          hero.fetchPriority = 'high';
+          document.head.appendChild(hero);
+        }
         try {
           var stored = localStorage.getItem('daytech-theme');
           var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
