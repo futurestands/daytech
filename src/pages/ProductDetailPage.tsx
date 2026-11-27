@@ -33,6 +33,18 @@ export function ProductDetailPage() {
     );
   }
 
+  const available = product.status === 'Available';
+  const previewAction = product.status === 'Planned' ? 'Register early interest'
+    : product.status === 'Private Alpha' ? 'Ask about pilot access'
+    : product.status === 'Public Beta' ? 'Ask about beta access'
+    : product.status === 'Maintenance' || product.status === 'Retired' ? 'Request support'
+    : product.status === 'In Development' ? 'Request a preview' : 'Request a demo';
+  const previewUrl = product.status === 'In Development' || available
+    ? `/demo?product=${product.slug}`
+    : `/contact?product=${product.slug}`;
+  const launchUrl = available && product.externalAppUrl && URL.canParse(product.externalAppUrl)
+    && new URL(product.externalAppUrl).protocol === 'https:' && product.slug !== 'waterops'
+    ? product.externalAppUrl : null;
   const related = PRODUCTS.filter((p) => product.relatedSlugs.includes(p.slug));
 
   return (
@@ -66,10 +78,10 @@ export function ProductDetailPage() {
 
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <Link
-                to={`/demo?product=${product.slug}`}
+                to={previewUrl}
                 className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-[#2563EB] hover:bg-blue-700 text-white text-sm font-semibold transition-colors whitespace-nowrap shrink-0"
               >
-                <span>Request a Demo</span>
+                <span>{previewAction}</span>
                 <ArrowRight className="w-4 h-4" />
               </Link>
               <Link
@@ -78,9 +90,9 @@ export function ProductDetailPage() {
               >
                 Request a Quotation
               </Link>
-              {product.status === 'Available' && product.externalAppUrl ? (
+              {launchUrl ? (
                 <a
-                  href={product.externalAppUrl}
+                  href={launchUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 px-5 py-3 rounded-lg bg-[#0B1120] dark:bg-slate-800 text-white text-sm font-semibold hover:bg-slate-800 transition-colors whitespace-nowrap shrink-0"
@@ -126,7 +138,7 @@ export function ProductDetailPage() {
         </div>
       </section>
 
-      {/* Interactive Demonstration Preview */}
+      {product.previewData.moduleTabs.length > 0 && (
       <section className="py-16 bg-white dark:bg-[#020617] border-b border-slate-200 dark:border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-2xl mb-8">
@@ -144,13 +156,14 @@ export function ProductDetailPage() {
           <ProductDashboardPreview product={product} />
         </div>
       </section>
+      )}
 
       {/* Features, Benefits & Target Customers */}
       <section className="py-16 bg-[#F8FAFC] dark:bg-[#0B1120] border-b border-slate-200 dark:border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
           <div className="lg:col-span-7 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#020617] p-6 sm:p-8">
             <h2 className="font-display text-xl font-bold text-[#0B1120] dark:text-white">
-              Capabilities &amp; Modules
+              {available ? 'Capabilities & modules' : 'Planned capabilities'}
             </h2>
             <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               {product.capabilities.map((cap) => (
@@ -193,7 +206,7 @@ export function ProductDetailPage() {
         </div>
       </section>
 
-      {/* Configurable Pricing Plans */}
+      {product.plans.length > 0 && (
       <section className="py-16 bg-white dark:bg-[#020617] border-b border-slate-200 dark:border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-10">
@@ -275,6 +288,9 @@ export function ProductDetailPage() {
           </div>
         </div>
       </section>
+      )}
+
+
 
       {/* FAQs */}
       <section className="py-14 bg-[#F8FAFC] dark:bg-[#0B1120] border-b border-slate-200 dark:border-slate-800">

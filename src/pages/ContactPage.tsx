@@ -1,8 +1,9 @@
 import React, { lazy, Suspense, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { AlertCircle, CheckCircle2, Globe, Mail, MapPin, Phone } from 'lucide-react';
 import { z } from 'zod';
 import { SEOHead } from '../components/SEOHead';
+import { getProductBySlug } from '../data/products';
 import { useAppContext } from '../context/AppContext';
 import { createContactMessageInFirestore } from '../lib/firebase/firestoreService';
 
@@ -17,13 +18,15 @@ const contactSchema = z.object({
 const DayTechCoverageMap = lazy(() => import('../components/DayTechCoverageMap').then(module => ({ default: module.DayTechCoverageMap })));
 
 export function ContactPage() {
+  const [params] = useSearchParams();
+  const product = getProductBySlug(params.get('product') || '');
   const { publicConfig } = useAppContext();
   const storageAvailable = publicConfig.storage?.persistent !== false;
   const [form, setForm] = useState({
     fullName: '',
     organisation: '',
     email: '',
-    subject: '',
+    subject: product ? 'Product interest: ' + product.name : params.get('topic') === 'partners' ? 'Partner programme interest' : '',
     message: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});

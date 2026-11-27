@@ -11,13 +11,13 @@ export function formatCurrencyValue(amount: number | null, currency: CurrencyCod
   return `$${amount.toLocaleString('en-US')}`;
 }
 
-export const PRODUCTS: ProductItem[] = [
+const existingProducts: ProductItem[] = [
   {
     slug: 'sacco',
     name: 'DayTech SACCO',
     tagline: 'Core cooperative banking, member shares, loans, and automated ledger reconciliation.',
     category: 'Cooperative Finance',
-    status: 'Under Development',
+    status: 'In Development',
     externalAppUrl: null,
     overview:
       'A dedicated core management platform designed for SACCOs, village savings groups, and microfinance institutions to manage member registers, share capital, savings deposits, loan appraisals, guarantor checks, and mobile money collections.',
@@ -76,7 +76,7 @@ export const PRODUCTS: ProductItem[] = [
       {
         question: 'Does it support Mobile Money repayment reconciliation?',
         answer:
-          'The architecture supports MTN Mobile Money and Airtel Money collection webhooks, activated once your institution’s official merchant API credentials are provisioned.',
+          'Mobile money reconciliation is planned. Operator integrations and merchant requirements will need pilot verification.',
       },
     ],
     relatedSlugs: ['finance', 'crm', 'hr'],
@@ -120,7 +120,7 @@ export const PRODUCTS: ProductItem[] = [
     name: 'DayTech HR & Payroll',
     tagline: 'Employee records, attendance tracking, leave approvals, and statutory Ugandan payroll.',
     category: 'People & Payroll',
-    status: 'Under Development',
+    status: 'In Development',
     externalAppUrl: null,
     overview:
       'An end-to-end human resource and payroll platform built around Uganda and East African statutory schedules—automating PAYE, NSSF, Local Service Tax (LST), leave balances, and downloadable payslips.',
@@ -174,12 +174,12 @@ export const PRODUCTS: ProductItem[] = [
       {
         question: 'Are statutory PAYE and NSSF rules configurable if legislation updates?',
         answer:
-          'Yes. Tax brackets and statutory contribution rates are stored in versioned configuration tables rather than hard-coded.',
+          'Versioned statutory configuration is planned. Applicable payroll rules will need review before release.',
       },
       {
         question: 'Can employees view their own payslips securely?',
         answer:
-          'Yes. Staff accounts only access their own payslips and leave history, isolated from HR and payroll administration.',
+          'An employee self-service area is planned. Access isolation will need verification before release.',
       },
     ],
     relatedSlugs: ['finance', 'crm', 'meet'],
@@ -223,7 +223,7 @@ export const PRODUCTS: ProductItem[] = [
     name: 'DayTech HotelOS',
     tagline: 'Property management, room reservations, housekeeping status, and POS billing.',
     category: 'Hospitality PMS',
-    status: 'Under Development',
+    status: 'In Development',
     externalAppUrl: null,
     overview:
       'A unified hospitality operating system built for hotels, safari lodges, serviced apartments, and conference venues—connecting front-desk reservations, room folios, restaurant/bar POS, and housekeeping coordination.',
@@ -277,12 +277,12 @@ export const PRODUCTS: ProductItem[] = [
       {
         question: 'Can safari lodges with unreliable internet still run front-desk operations?',
         answer:
-          'We design HotelOS deployments with resilient local caching and hybrid branch sync options for remote lodge environments.',
+          'Local caching and synchronisation are being evaluated for lodges with unreliable connections.',
       },
       {
         question: 'Can bar and restaurant bills be posted directly to a guest room?',
         answer:
-          'Yes. Kitchen and bar POS orders post cleanly to active guest folios and consolidate at check-out.',
+          'Posting restaurant charges to a room folio is planned for pilot validation.',
       },
     ],
     relatedSlugs: ['inventory', 'finance', 'hr'],
@@ -326,7 +326,7 @@ export const PRODUCTS: ProductItem[] = [
     name: 'DayTech Farm & Agribusiness',
     tagline: 'Crop cycles, livestock records, input inventory, and outgrower yield traceability.',
     category: 'AgriTech Operations',
-    status: 'Under Development',
+    status: 'In Development',
     externalAppUrl: null,
     overview:
       'A practical operations suite for commercial farms, dairy cooperatives, and agribusiness aggregators to record block yields, veterinary/input costs, worker output, and outgrower collections.',
@@ -380,12 +380,12 @@ export const PRODUCTS: ProductItem[] = [
       {
         question: 'Can field officers log collections when connectivity is weak?',
         answer:
-          'We engineer collection modules with offline-tolerant queuing so weigh-in records sync cleanly once network signal returns.',
+          'Offline-tolerant collection records are planned. Synchronisation behaviour will need field testing.',
       },
       {
         question: 'Does it manage farm store inputs alongside harvest output?',
         answer:
-          'Yes. Inputs issued to each block or herd roll directly into seasonal production cost summaries.',
+          'Input tracking and seasonal cost summaries are planned.',
       },
     ],
     relatedSlugs: ['inventory', 'sacco', 'finance'],
@@ -429,7 +429,7 @@ export const PRODUCTS: ProductItem[] = [
     name: 'DayTech CRM',
     tagline: 'Lead capture, deal pipelines, client account records, and follow-up reminders.',
     category: 'Sales & Customer Success',
-    status: 'Under Development',
+    status: 'In Development',
     externalAppUrl: null,
     overview:
       'A structured customer relationship and sales pipeline platform tailored for B2B service providers, distributors, and institutions—turning website enquiries, phone calls, and field visits into tracked proposals and renewals.',
@@ -483,12 +483,12 @@ export const PRODUCTS: ProductItem[] = [
       {
         question: 'Can website quotation forms feed directly into DayTech CRM?',
         answer:
-          'Yes. Enquiries captured on your web portal can create pipeline leads automatically with source attribution.',
+          'Creating CRM leads from website enquiries is planned. Availability depends on the deployed integration.',
       },
       {
         question: 'Does DayTech CRM support multiple currencies for regional deals?',
         answer:
-          'Yes. Opportunities can be logged in UGX, USD, or KES with summary roll-ups.',
+          'Multi-currency opportunities are planned for UGX, KES and USD.',
       },
     ],
     relatedSlugs: ['finance', 'hr', 'meet'],
@@ -532,7 +532,7 @@ export const PRODUCTS: ProductItem[] = [
     name: 'DayTech Inventory & POS',
     tagline: 'Multi-branch stock control, purchase orders, barcode POS, and supplier tracking.',
     category: 'Retail & Supply Chain',
-    status: 'Under Development',
+    status: 'In Development',
     externalAppUrl: null,
     overview:
       'A stock and point-of-sale engine built for wholesalers, pharmacies, hardware stores, and multi-branch retailers—combining purchase orders, inter-branch transfers, expiry/batch alerts, and cashier shift reconciliation.',
@@ -586,12 +586,12 @@ export const PRODUCTS: ProductItem[] = [
       {
         question: 'Does it track expiry dates for pharmacies or food distributors?',
         answer:
-          'Yes. Batch tracking records expiry dates at goods receipt and highlights near-expiry stock first.',
+          'Batch and expiry tracking are planned. Confirm category-specific requirements with the DayTech team.',
       },
       {
         question: 'Can head office see stock across all upcountry shops in real time?',
         answer:
-          'Yes. Central inventory dashboards consolidate branch quantities, transfers in transit, and daily sales totals.',
+          'Consolidated stock and transfers are planned. Timing depends on branch connectivity and pilot findings.',
       },
     ],
     relatedSlugs: ['finance', 'hotelos', 'farm'],
@@ -635,7 +635,7 @@ export const PRODUCTS: ProductItem[] = [
     name: 'DayTech Meet & Collaboration',
     tagline: 'Structured video meetings, board pack sharing, action minutes, and attendance logs.',
     category: 'Enterprise Collaboration',
-    status: 'Coming Soon',
+    status: 'Planned',
     externalAppUrl: null,
     overview:
       'A lightweight, bandwidth-conscious virtual meeting and governance workspace designed for distributed institutions, SACCO boards, and remote engineering teams—combining scheduling, agenda packs, attendance registers, and recorded action items.',
@@ -689,12 +689,12 @@ export const PRODUCTS: ProductItem[] = [
       {
         question: 'When is DayTech Meet scheduled for release?',
         answer:
-          'DayTech Meet is currently on our Coming Soon roadmap. You can register early interest via Book a Demo or Request a Quotation.',
+          'DayTech Meet is planned. Register early interest to discuss your organisation’s requirements.',
       },
       {
         question: 'Will it integrate with Google Calendar when enabled?',
         answer:
-          'Yes. Optional Google Calendar synchronisation is built behind explicit OAuth configuration when an organisation enables calendar integration.',
+          'Calendar synchronisation is planned as an optional integration subject to approval.',
       },
     ],
     relatedSlugs: ['crm', 'hr', 'sacco'],
@@ -738,7 +738,7 @@ export const PRODUCTS: ProductItem[] = [
     name: 'DayTech Finance & Billing',
     tagline: 'Double-entry accounting, multi-currency invoicing, expense approvals, and cashflow control.',
     category: 'Financial Accounting',
-    status: 'Under Development',
+    status: 'In Development',
     externalAppUrl: null,
     overview:
       'A clean general ledger, accounts receivable/payable, and multi-currency invoicing suite engineered for African businesses that invoice in UGX, USD, or KES and require clear expense approvals and audit-ready financial statements.',
@@ -792,12 +792,12 @@ export const PRODUCTS: ProductItem[] = [
       {
         question: 'Does DayTech Finance automatically collect live Mobile Money payments?',
         answer:
-          'Automated Mobile Money and card collection gateways remain disabled by default until you supply and verify your organisation’s merchant credentials.',
+          'Payment collection is a proposed integration. Merchant requirements and gateway availability need verification.',
       },
       {
         question: 'Can non-finance staff submit expense requests without accessing the general ledger?',
         answer:
-          'Yes. Staff can submit requisitions and receipts under scoped permissions while the full ledger remains restricted to authorised finance officers.',
+          'Scoped expense submission and ledger permissions are planned.',
       },
     ],
     relatedSlugs: ['sacco', 'inventory', 'hr'],
@@ -841,7 +841,7 @@ export const PRODUCTS: ProductItem[] = [
     name: 'DayTech WaterOps',
     tagline: 'Water utility meter billing, pump station telemetry, leakage logs, and field maintenance.',
     category: 'Utilities & Infrastructure',
-    status: 'Under Development',
+    status: 'In Development',
     externalAppUrl: null,
     overview:
       'A specialised utility management platform for municipal water boards, rural water schemes, and private estate utilities—tracking customer meter readings, tiered tariffs, non-revenue water (NRW) alerts, and field technician dispatches.',
@@ -895,12 +895,12 @@ export const PRODUCTS: ProductItem[] = [
       {
         question: 'Can WaterOps handle different tariffs for domestic, commercial, and kiosk standpipes?',
         answer:
-          'Yes. Tariff matrices support distinct customer categories, standing service fees, and progressive consumption blocks.',
+          'Tariff categories are under evaluation. Commercial release depends on intellectual-property clearance.',
       },
       {
         question: 'Does it support prepaid or smart bulk-meter telemetry?',
         answer:
-          'Yes. Consumption data can be imported via standard CSV/API feeds from compatible smart meters and borehole loggers.',
+          'Meter data imports are under evaluation. Compatibility has not been verified.',
       },
     ],
     relatedSlugs: ['finance', 'crm', 'inventory'],
@@ -940,6 +940,47 @@ export const PRODUCTS: ProductItem[] = [
     },
   },
 ];
+
+const plannedProducts: ProductItem[] = [
+  {
+    slug: 'schools',
+    name: 'DayTech Schools',
+    tagline: 'A proposed workspace for school administration.',
+    category: 'Education',
+    status: 'Planned',
+    externalAppUrl: null,
+    overview: 'DayTech Schools is planned for schools that manage enrolment, fee records and attendance across separate tools.',
+    problemStatement: 'Office teams can spend hours reconciling fee balances and updating the same learner information in different records.',
+    proposedSolution: 'A single workspace for admissions, student records, attendance and fee statements, subject to school pilot verification.',
+    capabilities: ['Student records and admissions', 'Class attendance', 'Fee records and term statements'],
+    benefits: ['Reduce repeated data entry', 'Give authorised staff a clearer view of term records'],
+    targetCustomers: ['Primary and secondary schools', 'Independent school networks'],
+    plans: [],
+    faqs: [{ question: 'Can my school sign up today?', answer: 'The product is planned. You can tell us about your school’s needs and indicate interest in a future pilot.' }],
+    relatedSlugs: ['hr', 'finance', 'inventory'],
+    previewData: { moduleTabs: [] },
+  },
+  {
+    slug: 'rentals',
+    name: 'DayTech Rentals',
+    tagline: 'A proposed workspace for property and rental operations.',
+    category: 'Property Management',
+    status: 'Planned',
+    externalAppUrl: null,
+    overview: 'DayTech Rentals is planned for teams that manage rental agreements, rent records and maintenance requests.',
+    problemStatement: 'Property teams often track lease renewals, balances and maintenance requests in separate spreadsheets and message threads.',
+    proposedSolution: 'A shared register for units, lease dates, rent statements and maintenance, subject to pilot verification.',
+    capabilities: ['Unit and occupancy register', 'Lease and renewal tracking', 'Rent and maintenance records'],
+    benefits: ['Make upcoming renewals easier to identify', 'Keep operational records together'],
+    targetCustomers: ['Property managers', 'Landlords and rental agencies'],
+    plans: [],
+    faqs: [{ question: 'Is DayTech Rentals available?', answer: 'The product is planned. Tell us about your portfolio and the workflows you would want a pilot to cover.' }],
+    relatedSlugs: ['finance', 'crm'],
+    previewData: { moduleTabs: [] },
+  },
+];
+
+export const PRODUCTS = [...existingProducts, ...plannedProducts];
 
 export function getProductBySlug(slug: string): ProductItem | undefined {
   return PRODUCTS.find((p) => p.slug === slug);

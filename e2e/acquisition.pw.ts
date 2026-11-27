@@ -51,3 +51,14 @@ test('production preview serves the primary image with optional integrations dis
   expect(image.ok()).toBe(true);
   expect(image.headers()['content-type']).toContain('image/jpeg');
 });
+
+test('planned products preserve public routes and collect interest through contact', async ({ page }) => {
+  await page.goto('/products/schools');
+  await expect(page.getByRole('heading', { name: 'DayTech Schools', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Planned capabilities' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Launch Application' })).toHaveCount(0);
+  await page.getByRole('link', { name: 'Register early interest' }).click();
+  await expect(page.getByLabel('Subject')).toHaveValue('Product interest: DayTech Schools');
+  await page.goto('/products/rentals');
+  await expect(page.getByRole('heading', { name: 'DayTech Rentals', exact: true })).toBeVisible();
+});

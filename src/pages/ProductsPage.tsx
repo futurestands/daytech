@@ -3,14 +3,11 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, Search } from 'lucide-react';
 import { SEOHead } from '../components/SEOHead';
 import { PRODUCTS } from '../data/products';
-import { ProductStatus } from '../types/domain';
+import { PRODUCT_STATUSES, ProductStatus } from '../types/domain';
 
 const STATUS_FILTERS: ('All' | ProductStatus)[] = [
   'All',
-  'Under Development',
-  'Coming Soon',
-  'Beta',
-  'Available',
+  ...PRODUCT_STATUSES,
 ];
 
 export function ProductsPage() {
@@ -19,7 +16,6 @@ export function ProductsPage() {
 
   const filtered = useMemo(() => {
     return PRODUCTS.filter((prod) => {
-      if (prod.status === 'Archived') return false;
       const matchesStatus = statusFilter === 'All' || prod.status === statusFilter;
       const q = query.trim().toLowerCase();
       const matchesQuery =
@@ -49,7 +45,7 @@ export function ProductsPage() {
               Modular software platforms engineered for independent deployment.
             </h1>
             <p className="mt-4 text-base sm:text-lg text-slate-600 dark:text-slate-300 leading-relaxed">
-              Each DayTech product is architected to run as an independent application in its own deployment environment. Products marked as Under Development or Coming Soon are actively being built and accept early pilot or demonstration requests.
+              Each DayTech product is architected to run as an independent application in its own deployment environment. Lifecycle labels describe each product’s current public status. Planned features and illustrative previews are subject to validation.
             </p>
           </div>
 

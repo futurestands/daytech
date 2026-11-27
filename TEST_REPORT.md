@@ -65,3 +65,9 @@ The main JavaScript file decreased from 1,410.23 kB to 1,098.70 kB minified, a 2
 - Complete customer onboarding and settings and test full browser-to-Firestore workflows. The browser suite uses fixture responses for public configuration and contact submission.
 - Verify actual Vercel routing and Google sign-in in an approved preview and confirm authorised domains and the named Firestore database. Set the server-only quotation signing secret. Disable voice visibility with `VITE_FEATURE_LIVE_VOICE=false` where the integration is unavailable.
 - Production rules deployment requires separate owner approval. No paid services were enabled.
+
+## Strategic platform foundation
+
+Branch `codex/daytech-platform-foundation` starts at the approved `0932cbd` merge and replays reviewed PR #2 increment `988a31d` for compatibility. Draft PR #2 and its in-progress local quotation files remain separate.
+
+TypeScript and Vite build passed. Vitest passed 18 API tests, Firestore emulator passed 13 tests, and Playwright passed 4 production-preview tests using locally cached Chromium. The new browser test covers direct Schools and Rentals routes and the product-specific contact handoff. Product and partner interest use the existing contact workflow. There is no dedicated waiting-list workflow or live production verification. The initial main bundle is 1,101.02 kB minified and 336.74 kB gzip. The existing chunk-size warning remains.

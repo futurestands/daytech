@@ -21,6 +21,7 @@ const PortfolioPage = lazy(() => import('./pages/PortfolioPage').then(module => 
 const InsightsPage = lazy(() => import('./pages/InsightsPage').then(module => ({ default: module.InsightsPage })));
 const QuotePage = lazy(() => import('./pages/QuotePage').then(module => ({ default: module.QuotePage })));
 const DemoPage = lazy(() => import('./pages/DemoPage').then(module => ({ default: module.DemoPage })));
+const CompanyProgrammesPage = lazy(() => import('./pages/CompanyProgrammesPage').then(module => ({ default: module.CompanyProgrammesPage })));
 const ContactPage = lazy(() => import('./pages/ContactPage').then(module => ({ default: module.ContactPage })));
 const ClientPortalPage = lazy(() => import('./pages/ClientPortalPage').then(module => ({ default: module.ClientPortalPage })));
 const AdminPage = lazy(() => import('./pages/AdminPage').then(module => ({ default: module.AdminPage })));
@@ -133,6 +134,8 @@ export default function App() {
                     <Route path="/insights" element={<InsightsPage />} />
                     <Route path="/quote" element={<QuotePage />} />
                     <Route path="/demo" element={<DemoPage />} />
+                    <Route path="/partners" element={<CompanyProgrammesPage mode="partners" />} />
+                    <Route path="/academy" element={<CompanyProgrammesPage mode="academy" />} />
                     <Route path="/contact" element={<ContactPage />} />
                     <Route path="/portal" element={<ClientPortalPage />} />
                     <Route path="/admin" element={<AdminPage />} />

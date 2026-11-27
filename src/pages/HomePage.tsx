@@ -124,10 +124,10 @@ export function HomePage() {
                 Uganda · East Africa · International Digital Engineering
               </p>
               <h1 className="mt-3 font-display text-4xl sm:text-5xl lg:text-[52px] font-bold tracking-tight text-[#0B1120] dark:text-white leading-[1.08]">
-                Building Technology. Transforming Businesses. Shaping the Future.
+                Technology that moves business forward.
               </h1>
               <p className="mt-5 text-base sm:text-lg text-slate-600 dark:text-slate-300 leading-relaxed max-w-xl">
-                DayTech Solutions delivers intelligent software, reliable IT infrastructure and innovative digital solutions that empower businesses and institutions to operate smarter, grow faster and achieve lasting impact.
+                DayTech helps organisations plan, build and operate business software and IT infrastructure, from point-of-sale workflows to networks, hosting and system integrations.
               </p>
 
               <div className="mt-8 flex flex-wrap items-center gap-3.5">
@@ -135,14 +135,14 @@ export function HomePage() {
                   to="/products"
                   className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-[#2563EB] hover:bg-blue-700 text-white text-sm font-semibold transition-colors whitespace-nowrap shrink-0"
                 >
-                  <span>Explore Our Solutions</span>
+                  <span>Explore Products</span>
                   <ArrowRight className="w-4 h-4" />
                 </Link>
                 <Link
                   to="/quote"
                   className="inline-flex items-center gap-2 px-5 py-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#0B1120] hover:bg-slate-50 dark:hover:bg-slate-900 text-[#0B1120] dark:text-white text-sm font-semibold transition-colors whitespace-nowrap shrink-0"
                 >
-                  <span>Get a Free Consultation</span>
+                  <span>Discuss your project</span>
                 </Link>
               </div>
             </div>
@@ -179,7 +179,7 @@ export function HomePage() {
             <div className="lg:col-span-5 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 min-h-[260px]">
               <ImageWithFallback
                 src="/src/assets/images/about_kampala_workspace_1795598739080.jpg"
-                alt="DayTech Solutions engineering team collaborating in East Africa"
+                alt="Illustrative photograph of a team collaborating in a technology workspace"
                 className="w-full h-full lg:h-full object-cover"
                 fallbackLabel="DayTech Engineering Studio"
               />
