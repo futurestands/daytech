@@ -5,6 +5,7 @@ import { SEOHead } from '../components/SEOHead';
 import { ProductDashboardPreview } from '../components/ProductDashboardPreview';
 import { formatCurrencyValue, getProductBySlug, PRODUCTS } from '../data/products';
 import { useAppContext } from '../context/AppContext';
+import { safeProductStatus } from '../lib/publicProductStatus';
 import { CurrencyCode, ProductStatus } from '../types/domain';
 
 type Release = {
@@ -46,7 +47,7 @@ export function ProductDetailPage() {
       ])].filter(Boolean),
       highlighted: false,
     })) : catalogue.plans,
-  } : catalogue);
+  } : { ...catalogue, status: safeProductStatus(catalogue.status) });
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   if (!product) {

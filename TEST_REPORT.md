@@ -169,3 +169,12 @@ Three fresh Chromium contexts per build at 390 by 844, 150 ms latency, 1.6 Mbit/
 | Firestore bundle on homepage | No | No |
 
 Each capture requested one hero image and had no horizontal overflow. LCP still exceeded five seconds in the measured after runs. The stylesheet requests three Google font families and the local measurements do not quantify their live latency. The figures describe the local lab only.
+## Strategic Increment 4 integration
+
+The integration branch starts from the strategic branch, which already contains the patch-equivalent acquisition work from `988a31d`. It applies the verified quotation changes from `73f847a` and uses the strategic Firestore adapter for publishing, growth and quotations. Draft PR #2 remains separate.
+
+On Windows with Node 24.15.0 and Bun 1.4.5, frozen installation, TypeScript, production build, 26 unit tests, 16 isolated Firestore emulator tests, 10 Express-backed Playwright tests, the secret scan and the direct-dependency licence check passed. The quotation tests exercise atomic revisions, retry idempotency, server totals, expired and revoked links, concurrent acceptance, verified guest linking and project conversion. Publication tests reject inconsistent approval records and confirm catalogues consume approved status. Real Firebase identities and the deployed Vercel handler require an isolated preview.
+
+Bun audited 515 packages at the high and critical threshold and returned zero findings. The generated SBOM contains 556 locked components and 445 installed-manifest licence records. Before commercial distribution, finish the shipped-asset notice inventory, the conditional licences and photograph rights review. See [Increment 4 security and preview](INCREMENT_4_READINESS.md) for advisory evidence and release gates.
+
+The main client build changed from 524.11 kB to 399.39 kB minified and from 163.35 kB to 121.79 kB gzip after removing the sole animation-library use. The deferred Firestore bundle remains outside the homepage request path.

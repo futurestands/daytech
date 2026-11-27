@@ -34,6 +34,8 @@ test('public product page renders a real emulator-backed release and keeps draft
     await page.goto('/products/rentals');
     expect((await release).status()).toBe(200);
     await expect(page.getByText('Rentals release from the isolated emulator.', { exact: true })).toBeVisible();
+    await page.goto('/products');
+    await expect(page.getByText('Property Management · Available')).toBeVisible();
     expect((await request.get('/api/admin/product-drafts/rentals')).status()).toBe(401);
   } finally {
     const document = await store.get(path);

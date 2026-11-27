@@ -143,6 +143,12 @@ export function createFirestoreStore(env: NodeJS.ProcessEnv) {
       } while (pageToken);
       return documents;
     },
+    async listPage(path: string, pageSize: number): Promise<FirestoreDocument[]> {
+      const response = await request(`/${path}?pageSize=${pageSize}`);
+      await assertOk(response);
+      const data = await response.json();
+      return data.documents ?? [];
+    },
     put(path: string, data: Record<string, Json | undefined>, condition: Condition, timestamps: string[] = []): FirestoreWrite {
       const fields = encodeFields(data);
       const now = new Date().toISOString();

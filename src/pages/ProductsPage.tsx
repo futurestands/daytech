@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, Search } from 'lucide-react';
 import { SEOHead } from '../components/SEOHead';
 import { PRODUCTS } from '../data/products';
+import { safeProductStatus, usePublicProductStatuses } from '../lib/publicProductStatus';
 import { PRODUCT_STATUSES, ProductStatus } from '../types/domain';
 
 const STATUS_FILTERS: ('All' | ProductStatus)[] = [
@@ -13,9 +14,10 @@ const STATUS_FILTERS: ('All' | ProductStatus)[] = [
 export function ProductsPage() {
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'All' | ProductStatus>('All');
+  const statuses = usePublicProductStatuses('all');
 
   const filtered = useMemo(() => {
-    return PRODUCTS.filter((prod) => {
+    return PRODUCTS.map(product => ({ ...product, status: statuses[product.slug] ?? safeProductStatus(product.status) })).filter((prod) => {
       const matchesStatus = statusFilter === 'All' || prod.status === statusFilter;
       const q = query.trim().toLowerCase();
       const matchesQuery =
@@ -26,7 +28,7 @@ export function ProductsPage() {
         prod.capabilities.some((c) => c.toLowerCase().includes(q));
       return matchesStatus && matchesQuery;
     });
-  }, [query, statusFilter]);
+  }, [query, statusFilter, statuses]);
 
   return (
     <div>

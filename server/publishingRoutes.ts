@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type { Express, Request, RequestHandler } from 'express';
 import { z } from 'zod';
-import { getProductBySlug } from '../src/data/products';
+import { getProductBySlug, PRODUCTS } from '../src/data/products';
 import { PRODUCT_STATUSES } from '../src/types/domain';
 import type { AdminAuthResult } from './lib/adminAuth';
 import { flattenFirestoreDocument } from './lib/firebaseAuth';
@@ -59,6 +59,25 @@ export function registerPublishingRoutes(app: Express, env: NodeJS.ProcessEnv, g
     const proposalFields = proposal && flattenFirestoreDocument(proposal);
     return draftSchema.parse({ ...payload, pricing: JSON.parse(String(proposalFields?.plans)) });
   }
+
+  app.get('/api/products/releases', async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    if (!env.FIRESTORE_SERVICE_ACCOUNT_JSON && !(env.NODE_ENV === 'test' && env.FIRESTORE_EMULATOR_HOST)) return res.json({});
+    const products = req.query.scope === 'featured'
+      ? PRODUCTS.filter(product => ['inventory', 'hotelos', 'schools'].includes(product.slug))
+      : PRODUCTS;
+    try {
+      const allowed = new Set(products.map(product => product.slug));
+      const records = await store.listPage('productReleases', PRODUCTS.length);
+      const entries = records.flatMap(record => {
+        const slug = record.name.split('/').at(-1);
+        if (!slug || slug === 'waterops' || !allowed.has(slug)) return [];
+        const release = projectionSchema.safeParse(JSON.parse(String(flattenFirestoreDocument(record).projection)));
+        return release.success ? [[slug, release.data.status]] : [];
+      });
+      return res.json(Object.fromEntries(entries));
+    } catch { return res.sendStatus(503); }
+  });
 
   app.get('/api/products/:slug/release', async (req, res) => {
     const slug = req.params.slug;

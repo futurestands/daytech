@@ -17,6 +17,7 @@ import { ProductDashboardPreview } from '../components/ProductDashboardPreview';
 import { ImageWithFallback } from '../components/ImageWithFallback';
 import { SERVICES } from '../data/services';
 import { PRODUCTS } from '../data/products';
+import { safeProductStatus, usePublicProductStatuses } from '../lib/publicProductStatus';
 import { INDUSTRIES } from '../data/industries';
 import { REFERENCE_ARCHITECTURES } from '../data/insights';
 
@@ -106,6 +107,7 @@ export function HomePage() {
   const [activeProcessIdx, setActiveProcessIdx] = useState<number>(0);
 
   const featuredProduct = PRODUCTS.find((p) => p.slug === featuredSlug) || PRODUCTS[0];
+  const productStatuses = usePublicProductStatuses('featured');
   const activeProcess = PROCESS_STEPS[activeProcessIdx];
 
   return (
@@ -345,7 +347,7 @@ export function HomePage() {
             <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#020617] p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
               <div className="max-w-2xl">
                 <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                  {featuredProduct.category} · Lifecycle Status: {featuredProduct.status}
+                  {featuredProduct.category} · Lifecycle Status: {productStatuses[featuredProduct.slug] ?? safeProductStatus(featuredProduct.status)}
                 </p>
                 <h3 className="mt-1 font-display text-2xl font-bold text-[#0B1120] dark:text-white">
                   {featuredProduct.name}
