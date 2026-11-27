@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import {
   AlertCircle,
   CheckCircle2,
@@ -70,6 +70,11 @@ const ticketSchema = z.object({
 });
 
 export function ClientPortalPage() {
+  const { user } = useFirebase();
+  return <ClientPortalSession key={user?.uid ?? 'guest'} />;
+}
+
+function ClientPortalSession() {
   const [searchParams] = useSearchParams();
   const { publicConfig } = useAppContext();
   const {
@@ -86,7 +91,8 @@ export function ClientPortalPage() {
 
   const [activeTab, setActiveTab] = useState<PortalTab>('lookup');
   const [refInput, setRefInput] = useState(searchParams.get('ref') || '');
-  const shareToken = searchParams.get('token');
+  const opaqueToken = new URLSearchParams(useLocation().hash.slice(1)).get('quote');
+  const shareToken = opaqueToken || searchParams.get('token');
   const [loading, setLoading] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [lookupResponse, setLookupResponse] = useState<{
@@ -254,6 +260,7 @@ export function ClientPortalPage() {
           return {
             id: d.id,
             quotationNumber: String(r.quotationNumber || d.id),
+            revision: typeof r.revision === 'number' ? r.revision : undefined,
             enquiryId: r.enquiryId ? String(r.enquiryId) : undefined,
             clientUid: r.clientUid ? String(r.clientUid) : undefined,
             clientName: String(r.clientName || ''),
@@ -304,8 +311,10 @@ export function ClientPortalPage() {
     void (async () => {
       try {
         const response = await fetch(
-          `/api/portal/lookup?${new URLSearchParams({ token: shareToken })}`,
-          { signal: controller.signal }
+          opaqueToken ? '/api/portal/quotation-share' : `/api/portal/lookup?${new URLSearchParams({ token: shareToken })}`,
+          opaqueToken
+            ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: opaqueToken }), signal: controller.signal }
+            : { signal: controller.signal }
         );
         const data = await response.json();
         if (controller.signal.aborted) return;
@@ -321,7 +330,7 @@ export function ClientPortalPage() {
       }
     })();
     return () => controller.abort();
-  }, [shareToken]);
+  }, [opaqueToken, shareToken]);
 
   const handleLookup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -404,7 +413,19 @@ export function ClientPortalPage() {
   const handleClientQuotationDecision = async (q: QuotationRecord, decision: 'Accepted' | 'Declined') => {
     setQuoteActionNotice(null);
     try {
-      await updateQuotationStatusInFirestore(q.id, decision, false);
+      if (q.revision) {
+        const response = await fetch(`/api/portal/quotations/${encodeURIComponent(q.id)}/decision`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await getIdToken()}` },
+          body: JSON.stringify({ revision: q.revision, status: decision }),
+        });
+        if (!response.ok) {
+          const result = await response.json();
+          throw new Error(result.error || 'Unable to record quotation decision.');
+        }
+      } else {
+        await updateQuotationStatusInFirestore(q.id, decision, false);
+      }
       setQuoteActionNotice(`Quotation ${q.quotationNumber} marked as ${decision}.`);
       setPreviewDoc((prev) =>
         prev && prev.quotation.id === q.id

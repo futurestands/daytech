@@ -39,3 +39,29 @@ npx --yes firebase-tools emulators:exec --only firestore --project demo-daytech-
 Run the existing branch directly. The original patch has already been applied. If the registry or emulator distribution endpoint continues to reset or time out, use a connection that can reach both `registry.npmjs.org` and `storage.googleapis.com`; retain the Bun cache and do not regenerate the lockfile.
 
 After all checks pass, commit the changes, push `codex/daytech-milestone-1` and open a PR into `main` with the results. Production Firebase rules require a separate approval.
+
+# Milestone 2 verification to date
+
+Milestone 1 was merged before branching. Milestone 2 starts from merge commit `0932cbd2c27a8eb6a4789497a10585f470f0e20f`. The existing test suites and access constraints are preserved. Changes to the Firestore rules were exercised in the local emulator only.
+
+| Check | Result |
+| --- | --- |
+| TypeScript 7.0.2 | Passed |
+| Vite 8.3.8 production build | Passed |
+| Vitest 5.1.2 API regression tests | 18 passed |
+| Firestore 1.22.0 emulator | 13 passed |
+| Playwright 1.65.1 production preview | 3 passed using locally cached Chromium through `DAYTECH_TEST_CHROMIUM` |
+
+API tests cover unavailable persistence, server-side UGX discount and VAT calculations, signed quotations, staff access, and sitemap and robots rewrite targets. Emulator tests cover the three acquisition collections, duplicate writes to a reference, denial of a guest claim, and assigned-customer acceptance and rejection while financial fields stay locked. Browser tests verify concurrent form submission suppression with a mocked API, direct administrative route loading, and real local production image serving with optional integrations disabled. GitHub Actions pins Bun 1.4.5 and uses an isolated emulator.
+
+## Bundle measurements
+
+The main JavaScript file decreased from 1,410.23 kB to 1,098.70 kB minified, a 22.1% reduction. Its gzip size decreased from 399.74 kB to 336.19 kB, a 15.9% reduction. The new initial HTML references 1,114.04 kB minified or 341.97 kB gzip across the main file and two module preloads. Deferred route and user-triggered voice chunks are outside these initial totals. The Vite native configuration warning is resolved. The main bundle still exceeds Vite's default chunk warning threshold.
+
+## Open work and manual configuration
+
+- Replace browser-authorised staff quotation writes with trusted persistence, including atomic line items, version history, enquiry conversion and project initiation. The UI validation endpoint checks totals but Firestore does not require its use.
+- Replace snapshot-bearing signed links with revocable, version-bound records. Add an audited guest-linking workflow and durable retry idempotency and abuse controls for public acquisition. The current duplicate guard applies to concurrent UI submits and reuse of a persisted reference.
+- Complete customer onboarding and settings and test full browser-to-Firestore workflows. The browser suite uses fixture responses for public configuration and contact submission.
+- Verify actual Vercel routing and Google sign-in in an approved preview and confirm authorised domains and the named Firestore database. Set the server-only quotation signing secret. Disable voice visibility with `VITE_FEATURE_LIVE_VOICE=false` where the integration is unavailable.
+- Production rules deployment requires separate owner approval. No paid services were enabled.

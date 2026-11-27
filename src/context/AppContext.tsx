@@ -78,14 +78,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       .then((res) => (res.ok ? res.json() : null))
       .then((data: PublicConfig | null) => {
         if (active && data) {
-          const serverLocalPersistent = data.storage?.provider === 'local-file-store';
           const effectiveStorage = firebaseActive
             ? {
                 persistent: true,
-                provider: serverLocalPersistent ? ('firestore+local' as const) : ('firestore' as const),
-                note: serverLocalPersistent
-                  ? 'Persisted to Cloud Firestore (daytech-bba8f) with local server mirror.'
-                  : 'Persisted to Cloud Firestore (daytech-bba8f).',
+                provider: 'firestore' as const,
+                note: 'Persisted to Cloud Firestore.',
               }
             : data.storage || {
                 persistent: false,

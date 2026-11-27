@@ -172,7 +172,8 @@ service cloud.firestore {
 
     function isValidUserPrivateInfo(data) {
       return data.keys().hasAll(['uid', 'email', 'updatedAt']) &&
-        data.keys().hasOnly(['uid', 'email', 'telephone', 'updatedAt']) &&
+        data.keys().hasOnly(['uid', 'email', 'emailVerified', 'telephone', 'updatedAt']) &&
+        data.emailVerified == true &&
         data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 &&
         data.email is string && data.email.size() >= 5 && data.email.size() <= 160 &&
         (!('telephone' in data) || (data.telephone is string && data.telephone.size() <= 40)) &&
@@ -327,6 +328,7 @@ service cloud.firestore {
       allow create: if isValidId(enquiryId) &&
         isNotDeactivatedSubmitter() &&
         isValidEnquiry(incoming()) &&
+        incoming().referenceNumber == enquiryId &&
         incoming().status == 'New' &&
         !('internalNotes' in incoming()) &&
         incoming().createdAt == request.time &&
@@ -352,6 +354,7 @@ service cloud.firestore {
       allow create: if isValidId(demoId) &&
         isNotDeactivatedSubmitter() &&
         isValidDemoBooking(incoming()) &&
+        incoming().referenceNumber == demoId &&
         incoming().status == 'Pending' &&
         incoming().createdAt == request.time &&
         incoming().updatedAt == request.time &&
@@ -373,6 +376,7 @@ service cloud.firestore {
       allow create: if isValidId(contactId) &&
         isNotDeactivatedSubmitter() &&
         isValidContactMessage(incoming()) &&
+        incoming().referenceNumber == contactId &&
         incoming().createdAt == request.time;
       allow update, delete: if isValidId(contactId) && isAdmin();
     }
@@ -427,6 +431,7 @@ service cloud.firestore {
           (!userDocExists() || isUserActive()) &&
           isValidUserPrivateInfo(incoming()) &&
           incoming().uid == request.auth.uid &&
+          incoming().email == request.auth.token.email &&
           incoming().updatedAt == request.time;
         allow delete: if isValidId(userId) && isAdmin();
       }
@@ -498,42 +503,23 @@ service cloud.firestore {
         (isActiveClient() && 'clientUid' in existing() && existing().clientUid == request.auth.uid) || isSalesStaff()
       );
       allow list: if (isActiveClient() && 'clientUid' in resource.data && resource.data.clientUid == request.auth.uid) || isSalesStaff();
-      allow create: if isValidId(quotationId) &&
-        isSalesStaff() &&
-        isValidQuotation(incoming()) &&
-        incoming().quotationNumber == quotationId &&
-        incoming().createdByUid == request.auth.uid &&
-        incoming().status in ['Draft', 'Sent'] &&
-        incoming().createdAt == request.time &&
-        incoming().updatedAt == request.time;
+      allow create, delete: if false;
+      // Legacy customer decisions remain available for quotations saved before server revisions.
       allow update: if isValidId(quotationId) &&
-        isValidQuotation(incoming()) &&
-        incoming().quotationNumber == existing().quotationNumber &&
-        incoming().createdByUid == existing().createdByUid &&
-        incoming().createdAt == existing().createdAt &&
-        incoming().updatedAt == request.time && (
-          isAdmin() ||
-          (
-            isSalesStaff() &&
-            !(existing().status in ['Accepted', 'Declined']) &&
-            incoming().diff(existing()).affectedKeys().hasOnly([
-              'enquiryId', 'clientUid', 'clientName', 'clientOrganisation', 'clientEmail',
-              'clientTelephone', 'clientCountry', 'title', 'currency',
-              'subtotal', 'discountPercent', 'discountAmount', 'taxPercent',
-              'taxAmount', 'totalAmount', 'status', 'validUntil', 'paymentTerms',
-              'notes', 'updatedAt'
-            ])
-          ) ||
-          (
-            isActiveClient() &&
-            'clientUid' in existing() &&
-            existing().clientUid == request.auth.uid &&
-            existing().status == 'Sent' &&
-            incoming().status in ['Accepted', 'Declined'] &&
-            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
-          )
-        );
-      allow delete: if isValidId(quotationId) && isAdmin();
+        !('revision' in existing()) &&
+        isActiveClient() &&
+        'clientUid' in existing() &&
+        existing().clientUid == request.auth.uid &&
+        existing().status == 'Sent' &&
+        incoming().status in ['Accepted', 'Declined'] &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']);
+
+      match /revisions/{revisionId} {
+        allow read: if isSalesStaff() ||
+          (isActiveClient() && resource.data.clientUid == request.auth.uid);
+        allow write: if false;
+      }
 
       match /items/{itemId} {
         allow get: if isValidId(quotationId) && isValidId(itemId) && (
@@ -541,30 +527,7 @@ service cloud.firestore {
           (isActiveClient() && 'clientUid' in get(/databases/$(database)/documents/quotations/$(quotationId)).data && get(/databases/$(database)/documents/quotations/$(quotationId)).data.clientUid == request.auth.uid)
         );
         allow list: if isSalesStaff() || (isActiveClient() && 'clientUid' in resource.data && resource.data.clientUid == request.auth.uid);
-        allow create: if isValidId(quotationId) && isValidId(itemId) &&
-          isSalesStaff() &&
-          isValidQuotationItem(incoming()) &&
-          incoming().quotationId == quotationId &&
-          incoming().createdAt == request.time &&
-          existsAfter(/databases/$(database)/documents/quotations/$(quotationId)) &&
-          (
-            (!('clientUid' in getAfter(/databases/$(database)/documents/quotations/$(quotationId)).data) && !('clientUid' in incoming())) ||
-            ('clientUid' in getAfter(/databases/$(database)/documents/quotations/$(quotationId)).data && 'clientUid' in incoming() && incoming().clientUid == getAfter(/databases/$(database)/documents/quotations/$(quotationId)).data.clientUid)
-          );
-        allow update: if isValidId(quotationId) && isValidId(itemId) &&
-          isSalesStaff() &&
-          isValidQuotationItem(incoming()) &&
-          incoming().quotationId == existing().quotationId &&
-          incoming().createdAt == existing().createdAt &&
-          (!(get(/databases/$(database)/documents/quotations/$(quotationId)).data.status in ['Accepted', 'Declined']) || isAdmin()) &&
-          incoming().diff(existing()).affectedKeys().hasOnly([
-            'clientUid', 'sortOrder', 'itemType', 'description', 'details',
-            'unit', 'quantity', 'unitPrice', 'lineTotal'
-          ]);
-        allow delete: if isValidId(quotationId) && isValidId(itemId) && (
-          isAdmin() ||
-          (isSalesStaff() && !(get(/databases/$(database)/documents/quotations/$(quotationId)).data.status in ['Accepted', 'Declined']))
-        );
+        allow write: if false;
       }
     }
 

@@ -66,7 +66,11 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    let sessionRevision = 0;
     const unsubscribe = onAuthStateChanged(auth, async (nextUser) => {
+      const revision = ++sessionRevision;
+      setAuthReady(false);
+      setUserAccount(null);
       setUser(nextUser);
       setAuthError(null);
       if (!nextUser) {
@@ -77,6 +81,7 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
 
       try {
         const account = await syncUserAccountOnSignIn(nextUser);
+        if (revision !== sessionRevision) return;
         setUserAccount(account);
         if (!account.active) {
           setAuthError(
@@ -84,14 +89,18 @@ export function FirebaseProvider({ children }: { children: React.ReactNode }) {
           );
         }
       } catch (err) {
+        if (revision !== sessionRevision) return;
         setAuthError(formatFirebaseAuthError(err));
         setUserAccount(null);
       } finally {
-        setAuthReady(true);
+        if (revision === sessionRevision) setAuthReady(true);
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      sessionRevision++;
+      unsubscribe();
+    };
   }, [firebaseReady]);
 
   const signInWithGoogle = async () => {

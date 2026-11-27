@@ -1,27 +1,53 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
+import { Radio } from 'lucide-react';
 import { BrowserRouter, Link, Route, Routes, useLocation } from 'react-router-dom';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AppProvider } from './context/AppContext';
 import { FirebaseProvider } from './context/FirebaseContext';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
-import { LiveVoiceDrawer } from './components/LiveVoiceDrawer';
+import { parseBooleanFlag } from './config/features';
 import { HomePage } from './pages/HomePage';
-import { AboutPage } from './pages/AboutPage';
-import { ServicesPage } from './pages/ServicesPage';
-import { ServiceDetailPage } from './pages/ServiceDetailPage';
-import { ProductsPage } from './pages/ProductsPage';
-import { ProductDetailPage } from './pages/ProductDetailPage';
-import { IndustriesPage } from './pages/IndustriesPage';
-import { IndustryDetailPage } from './pages/IndustryDetailPage';
-import { PortfolioPage } from './pages/PortfolioPage';
-import { InsightsPage } from './pages/InsightsPage';
-import { QuotePage } from './pages/QuotePage';
-import { DemoPage } from './pages/DemoPage';
-import { ContactPage } from './pages/ContactPage';
-import { ClientPortalPage } from './pages/ClientPortalPage';
-import { AdminPage } from './pages/AdminPage';
-import { LegalPage } from './pages/LegalPage';
+
+const LiveVoiceDrawer = lazy(() => import('./components/LiveVoiceDrawer').then(module => ({ default: module.LiveVoiceDrawer })));
+const AboutPage = lazy(() => import('./pages/AboutPage').then(module => ({ default: module.AboutPage })));
+const ServicesPage = lazy(() => import('./pages/ServicesPage').then(module => ({ default: module.ServicesPage })));
+const ServiceDetailPage = lazy(() => import('./pages/ServiceDetailPage').then(module => ({ default: module.ServiceDetailPage })));
+const ProductsPage = lazy(() => import('./pages/ProductsPage').then(module => ({ default: module.ProductsPage })));
+const ProductDetailPage = lazy(() => import('./pages/ProductDetailPage').then(module => ({ default: module.ProductDetailPage })));
+const IndustriesPage = lazy(() => import('./pages/IndustriesPage').then(module => ({ default: module.IndustriesPage })));
+const IndustryDetailPage = lazy(() => import('./pages/IndustryDetailPage').then(module => ({ default: module.IndustryDetailPage })));
+const PortfolioPage = lazy(() => import('./pages/PortfolioPage').then(module => ({ default: module.PortfolioPage })));
+const InsightsPage = lazy(() => import('./pages/InsightsPage').then(module => ({ default: module.InsightsPage })));
+const QuotePage = lazy(() => import('./pages/QuotePage').then(module => ({ default: module.QuotePage })));
+const DemoPage = lazy(() => import('./pages/DemoPage').then(module => ({ default: module.DemoPage })));
+const ContactPage = lazy(() => import('./pages/ContactPage').then(module => ({ default: module.ContactPage })));
+const ClientPortalPage = lazy(() => import('./pages/ClientPortalPage').then(module => ({ default: module.ClientPortalPage })));
+const AdminPage = lazy(() => import('./pages/AdminPage').then(module => ({ default: module.AdminPage })));
+const LegalPage = lazy(() => import('./pages/LegalPage').then(module => ({ default: module.LegalPage })));
+
+function VoiceAdvisor() {
+  const [open, setOpen] = useState(false);
+  if (open) {
+    return (
+      <Suspense fallback={<p role="status" className="fixed bottom-5 right-5 z-40">Loading voice advisor…</p>}>
+        <LiveVoiceDrawer onClose={() => setOpen(false)} />
+      </Suspense>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => setOpen(true)}
+      aria-label="Open DayTech Live Voice Advisor"
+      className="print:hidden fixed bottom-5 right-5 z-40 inline-flex items-center gap-2.5 px-4 py-3 rounded-xl bg-[#0B1120] dark:bg-[#2563EB] text-white shadow-lg border border-slate-700/60 dark:border-blue-400/40 hover:bg-slate-900 dark:hover:bg-blue-700 transition-colors"
+    >
+      <Radio className="w-4 h-4 text-[#06B6D4] dark:text-white" />
+      <span className="text-xs sm:text-sm font-semibold">Live Voice Advisor</span>
+    </button>
+  );
+}
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -93,29 +119,31 @@ export default function App() {
               )}
               <Navbar />
               <main className="flex-1">
-                <Routes>
-                  <Route path="/" element={<HomePage />} />
-                  <Route path="/about" element={<AboutPage />} />
-                  <Route path="/services" element={<ServicesPage />} />
-                  <Route path="/services/:slug" element={<ServiceDetailPage />} />
-                  <Route path="/products" element={<ProductsPage />} />
-                  <Route path="/products/:slug" element={<ProductDetailPage />} />
-                  <Route path="/industries" element={<IndustriesPage />} />
-                  <Route path="/industries/:slug" element={<IndustryDetailPage />} />
-                  <Route path="/portfolio" element={<PortfolioPage />} />
-                  <Route path="/insights" element={<InsightsPage />} />
-                  <Route path="/quote" element={<QuotePage />} />
-                  <Route path="/demo" element={<DemoPage />} />
-                  <Route path="/contact" element={<ContactPage />} />
-                  <Route path="/portal" element={<ClientPortalPage />} />
-                  <Route path="/admin" element={<AdminPage />} />
-                  <Route path="/legal/privacy" element={<LegalPage mode="privacy" />} />
-                  <Route path="/legal/terms" element={<LegalPage mode="terms" />} />
-                  <Route path="*" element={<NotFoundPage />} />
-                </Routes>
+                <Suspense fallback={<p role="status" className="p-8 text-center">Loading page…</p>}>
+                  <Routes>
+                    <Route path="/" element={<HomePage />} />
+                    <Route path="/about" element={<AboutPage />} />
+                    <Route path="/services" element={<ServicesPage />} />
+                    <Route path="/services/:slug" element={<ServiceDetailPage />} />
+                    <Route path="/products" element={<ProductsPage />} />
+                    <Route path="/products/:slug" element={<ProductDetailPage />} />
+                    <Route path="/industries" element={<IndustriesPage />} />
+                    <Route path="/industries/:slug" element={<IndustryDetailPage />} />
+                    <Route path="/portfolio" element={<PortfolioPage />} />
+                    <Route path="/insights" element={<InsightsPage />} />
+                    <Route path="/quote" element={<QuotePage />} />
+                    <Route path="/demo" element={<DemoPage />} />
+                    <Route path="/contact" element={<ContactPage />} />
+                    <Route path="/portal" element={<ClientPortalPage />} />
+                    <Route path="/admin" element={<AdminPage />} />
+                    <Route path="/legal/privacy" element={<LegalPage mode="privacy" />} />
+                    <Route path="/legal/terms" element={<LegalPage mode="terms" />} />
+                    <Route path="*" element={<NotFoundPage />} />
+                  </Routes>
+                </Suspense>
               </main>
               <Footer />
-              <LiveVoiceDrawer />
+              {parseBooleanFlag(import.meta.env.VITE_FEATURE_LIVE_VOICE, true) && <VoiceAdvisor />}
             </div>
           </BrowserRouter>
         </FirebaseProvider>

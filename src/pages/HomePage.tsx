@@ -153,6 +153,7 @@ export function HomePage() {
                 alt="DayTech enterprise technology operations and engineering architecture"
                 className="w-full h-full lg:h-full object-cover"
                 fallbackLabel="DayTech Engineering Command Architecture"
+                priority
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#020617]/80 via-[#020617]/20 to-transparent" />
               <div className="absolute bottom-5 left-5 right-5 text-white">
