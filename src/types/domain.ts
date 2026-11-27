@@ -251,6 +251,7 @@ export interface QuotationItemRecord {
 export interface QuotationRecord {
   id: string;
   quotationNumber: string;
+  revision?: number;
   enquiryId?: string;
   clientUid?: string;
   clientName: string;
