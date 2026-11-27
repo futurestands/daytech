@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { Express, Request, RequestHandler } from 'express';
 import { z } from 'zod';
 import { getProductBySlug } from '../src/data/products';
@@ -34,6 +34,8 @@ const versionSchema = z.iso.datetime();
 const editors = ['super_admin', 'admin', 'content_manager'] as const;
 const publisher = ['super_admin'] as const;
 const projectionSchema = draftSchema.pick({ description: true, status: true, capabilities: true, releaseVersion: true, launchUrl: true, pricing: true });
+const draftDigest = (draft: z.infer<typeof draftSchema>) =>
+  createHash('sha256').update(JSON.stringify(draft)).digest('hex');
 
 function httpsUrl(value: string) {
   try {
@@ -172,15 +174,33 @@ export function registerPublishingRoutes(app: Express, env: NodeJS.ProcessEnv, g
         ))) return res.status(400).json({ error: 'Availability needs release evidence, verified capabilities and an approved HTTPS origin. Proposed prices need explicit approval.' });
         const approvalId = randomUUID();
         next.update.fields.approvalId = { stringValue: approvalId };
+        next.update.fields.reviewedVersion = { stringValue: document.updateTime };
+        const binding = { slug, approvedBy: auth.uid, draftDigest: draftDigest(draft), reviewedVersion: document.updateTime };
         for (const [collection, fields] of [
           ['productReleaseEvidence', { evidence: draft.evidence, releaseVersion: draft.releaseVersion }],
           ['productApprovedOrigins', { origin: approvedOrigin }],
-          ['productApprovedPricing', { plans: JSON.stringify(draft.pricing) }],
+          ['productApprovedPricing', { plans: JSON.stringify(draft.pricing), approvePricing }],
         ] as const) {
-          writes.push(store.put(collection + '/' + approvalId, { slug, ...fields, approvedBy: auth.uid }, { exists: false }, ['createdAt']));
+          writes.push(store.put(collection + '/' + approvalId, { ...fields, ...binding }, { exists: false }, ['createdAt']));
         }
       } else if (action === 'publish') {
         if (typeof stored.approvalId !== 'string' || !/^[\da-f-]{36}$/.test(stored.approvalId)) return res.sendStatus(409);
+        const approvals = await Promise.all(['productReleaseEvidence', 'productApprovedOrigins', 'productApprovedPricing']
+          .map(collection => store.get(collection + '/' + stored.approvalId)));
+        const digest = draftDigest(draft);
+        const [evidence, origin, pricing] = approvals.map(item => item && flattenFirestoreDocument(item));
+        const approved = [evidence, origin, pricing].every(record =>
+          record && record.slug === slug && record.draftDigest === digest &&
+          typeof stored.actedBy === 'string' && record.approvedBy === stored.actedBy &&
+          typeof stored.reviewedVersion === 'string' && record.reviewedVersion === stored.reviewedVersion);
+        if (!approved || evidence?.evidence !== draft.evidence || evidence?.releaseVersion !== draft.releaseVersion ||
+          pricing?.plans !== JSON.stringify(draft.pricing) || (draft.pricing.length && pricing.approvePricing !== true) ||
+          (draft.status === 'Available' && (slug === 'waterops' || !draft.evidence || !draft.releaseVersion ||
+            !draft.capabilities.length || !httpsUrl(draft.launchUrl) || httpsUrl(draft.launchUrl)?.origin !== origin?.origin))) {
+          return res.status(409).json({ error: 'Release approval is incomplete or stale. Review and approve the draft again.' });
+        }
+        audit.approvalId = stored.approvalId;
+        audit.approvedBy = String(stored.actedBy);
         const releasePath = 'productReleases/' + slug;
         const revisionPath = releasePath + '/revisions/' + stored.approvalId;
         const previous = await store.get(releasePath);

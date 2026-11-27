@@ -15,3 +15,4 @@ Milestone 2 started after owner approval and the merge of Milestone 1 in PR #1.
 ## Strategic commercial readiness sequence
 
 Keep the strategic branch and unfinished quotation checkout independent until the owner approves the integration baseline. Validate one evidence-backed release in an isolated preview, confirm authorised launch origin and approved prices, and retain the existing catalogue as a safe fallback. Preserve all stable product URLs. Compare HotelOS and Inventory & POS using actual demand and readiness evidence. Keep Schools and Rentals planned. Enable payment, licence enforcement and production launch only through their own approval gates.
+Strategic Increment 4 gates and preview prerequisites are tracked in [Increment 4 security and preview](INCREMENT_4_READINESS.md).

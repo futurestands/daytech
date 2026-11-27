@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { assertFails, assertSucceeds, initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
-import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 let env: RulesTestEnvironment;
@@ -265,6 +265,15 @@ describe('protected publishing', () => {
       const approved = { version: (await read()).version };
       expect((await req(path + '/publish', 'content_manager', 'POST', approved)).status).toBe(403);
       const publish = () => req(path + '/publish', 'super_admin', 'POST', approved);
+      await env.withSecurityRulesDisabled(async ctx => {
+        const records = await getDocs(collection(ctx.firestore(), 'productApprovedOrigins'));
+        expect(records.size).toBe(1);
+        const record = records.docs[0];
+        await updateDoc(record.ref, { origin: 'https://other.example.invalid' });
+        expect((await publish()).status).toBe(409);
+        expect((await req('/api/products/inventory/release')).status).toBe(404);
+        await updateDoc(record.ref, { origin: 'https://app.example.invalid' });
+      });
       expect((await Promise.all([publish(), publish()])).map(item => item.status).sort()).toEqual([204, 409]);
       const release = await (await req('/api/products/inventory/release')).json();
       expect(release).toMatchObject({ status: 'Available', launchUrl: draft.launchUrl, pricing: draft.pricing });

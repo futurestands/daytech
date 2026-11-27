@@ -61,3 +61,4 @@
 - [x] Public-route Firebase deferral, asset provenance register, CycloneDX and CI secret and licence checks.
 - [ ] Owner-approved isolated preview with IAM, indexes and rate-limit source verification.
 - [ ] Monitor abuse and cohort reporting, resolve provenance and legal reviews, and approve a retention and suppression schedule.
+Use [Increment 4 security and preview](INCREMENT_4_READINESS.md) to verify dependency findings, protected preview configuration and retention sign-off before commercial rollout.

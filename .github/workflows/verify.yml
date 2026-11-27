@@ -22,9 +22,16 @@ jobs:
           java-version: '21'
       - run: bun install --frozen-lockfile
       - run: bun scripts/check-secrets.ts
-      - run: bun scripts/generate-sbom.ts
+      - run: bun scripts/generate-sbom.ts artifacts/daytech-sbom.cdx.json
+      - run: bun audit --audit-level high
       - run: bun run lint
       - run: bun run build
       - run: bun run vitest run
       - run: bun run playwright install --with-deps chromium
-      - run: npx --yes firebase-tools emulators:exec --only firestore --project demo-daytech-milestone --config firebase.test.json "bun run vitest run --config vitest.firestore.config.ts && bun run playwright test"
+      - run: npx --yes firebase-tools@15.37.0 emulators:exec --only firestore --project demo-daytech-milestone --config firebase.test.json "bun run vitest run --config vitest.firestore.config.ts && bun run playwright test"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: daytech-sbom
+          path: artifacts/daytech-sbom.cdx.json
+          if-no-files-found: ignore
